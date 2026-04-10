@@ -4,3 +4,5 @@ data
 *.log
 .env
 .env.local
+.npm-cache
+tsconfig.tsbuildinfo
