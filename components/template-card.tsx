@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { getMediaUrl } from "@/lib/media-url";
@@ -7,12 +8,17 @@ import type { TemplateListItem } from "@/lib/types";
 
 type Props = {
   item: TemplateListItem;
+  href?: string;
+  compact?: boolean;
 };
 
-export function TemplateCard({ item }: Props) {
+export function TemplateCard({ item, href, compact = false }: Props) {
   const [isPreviewing, setIsPreviewing] = useState(false);
   const delayRef = useRef<number | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const description = item.description.trim() || "打开详情页查看标签分组、预览视频和下载入口。";
+  const createdAt = new Date(item.createdAt).toLocaleDateString("zh-CN");
+  const linkHref = (href ?? `/template/${item.id}`) as Route;
 
   useEffect(() => {
     return () => {
@@ -36,12 +42,12 @@ export function TemplateCard({ item }: Props) {
       }
 
       try {
-        video.playbackRate = 1.5;
+        video.playbackRate = 1.25;
         await video.play();
       } catch {
         setIsPreviewing(false);
       }
-    }, 180);
+    }, 160);
   };
 
   const handleLeave = () => {
@@ -61,31 +67,35 @@ export function TemplateCard({ item }: Props) {
 
   return (
     <Link
-      href={`/template/${item.id}`}
-      className="card"
+      href={linkHref}
+      className={`template-card${compact ? " compact" : ""}`}
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
     >
-      <div className="card-media">
+      <div className="template-card-media">
         <img src={getMediaUrl(item.thumbnailPath)} alt={item.name} />
         <video
           ref={videoRef}
+          className="template-card-video"
           src={getMediaUrl(item.previewVideoPath)}
           muted
           loop
           playsInline
           preload="metadata"
-          style={{ opacity: isPreviewing ? 1 : 0, transition: "opacity 0.18s ease" }}
+          style={{ opacity: isPreviewing ? 1 : 0 }}
         />
+        <div className="template-card-flags">
+          <span className="template-flag dark">{isPreviewing ? "预览中" : "模板预览"}</span>
+          <span className="template-flag light">{createdAt}</span>
+        </div>
       </div>
-      <div className="card-body">
-        <h2>{item.name}</h2>
-        <div className="tag-row">
-          {item.tags.slice(0, 4).map((tag) => (
-            <span className="tag" key={`${item.id}-${tag}`}>
-              {tag}
-            </span>
-          ))}
+
+      <div className="template-card-body">
+        <h3 className="template-card-title">{item.name}</h3>
+        {!compact ? <p className="template-card-description">{description}</p> : null}
+        <div className="template-card-meta">
+          <span>{item.uploadedBy}</span>
+          <span>{item.tags[0] ?? "AE模板"}</span>
         </div>
       </div>
     </Link>

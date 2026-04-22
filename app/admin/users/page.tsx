@@ -20,7 +20,7 @@ export default async function AdminUsersPage() {
 
   return (
     <main className="shell">
-      <AppHeader user={user} />
+      <AppHeader user={user} active="admin-users" />
       <AdminUserPanel users={users} currentUserId={user.id} />
     </main>
   );

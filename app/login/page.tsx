@@ -1,4 +1,5 @@
 import type { Route } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/login-form";
 import { getCurrentUser } from "@/lib/auth";
@@ -19,18 +20,47 @@ export default async function LoginPage({
   }
 
   return (
-    <main className="auth-shell">
-      <div className="auth-panel">
-        <div>
-          <span className="eyebrow">登录</span>
-          <h1>使用管理员创建的账号进入素材库。</h1>
-          <p className="muted">
-            当前站点不开放注册。若你需要账号，请联系管理员创建并分配初始密码。
-          </p>
+    <main className="site-shell">
+      <header className="platform-header">
+        <div className="platform-header-inner">
+          <Link href={"/" as Route} className="platform-brand">
+            <span className="platform-brand-mark" aria-hidden="true">
+              <span />
+              <span />
+            </span>
+            <span className="platform-brand-text">光帧模板库</span>
+          </Link>
+
+          <nav className="platform-nav">
+            <Link href={"/" as Route} className="platform-nav-link">
+              首页
+            </Link>
+            <Link href={"/login" as Route} className="platform-nav-link active">
+              登录
+            </Link>
+          </nav>
+
+          <div className="platform-header-tools">
+            <Link href={"/" as Route} className="header-search-chip">
+              返回首页
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <section className="login-stage">
+        <div className="login-copy">
+          <span className="section-overline">账号登录</span>
+          <h1>登录后进入素材库。</h1>
         </div>
 
-        <LoginForm nextPath={nextPath} />
-      </div>
+        <div className="login-panel">
+          <div className="login-panel-head">
+            <h2>继续访问</h2>
+          </div>
+          <LoginForm nextPath={nextPath} />
+        </div>
+      </section>
     </main>
   );
 }

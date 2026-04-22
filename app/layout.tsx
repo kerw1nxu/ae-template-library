@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "AE 模板库",
-  description: "一个面向团队内部账号开放的 AE 模板管理与检索站点。",
+  description: "企业宣传、片头包装与栏目模板的内部检索与下载平台。",
 };
 
 export default function RootLayout({
@@ -13,7 +13,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
-      <body>{children}</body>
+      <body className="site-root">{children}</body>
     </html>
   );
 }

@@ -30,69 +30,77 @@ export default async function TemplateDetailPage({
     notFound();
   }
 
+  const metaItems = [
+    { label: "上传时间", value: new Date(template.createdAt).toLocaleString("zh-CN", { hour12: false }) },
+    { label: "上传人", value: template.uploadedBy },
+    { label: "导入方式", value: template.importMode === "scan" ? "目录扫描" : "手动上传" },
+    { label: "来源路径", value: template.sourcePathKey ?? "手动上传素材" },
+  ];
+
   return (
-    <main className="shell">
-      <AppHeader user={user} />
+    <main className="site-shell">
+      <AppHeader user={user} active="detail" />
 
-      <div className="crumbs">
-        <Link href={"/library" as Route}>素材库</Link>
-        <span>/</span>
-        <span>{template.name}</span>
-      </div>
+      <div className="page-shell">
+        <div className="breadcrumbs">
+          <Link href={"/library" as Route}>素材库</Link>
+          <span>/</span>
+          <span>{template.name}</span>
+        </div>
 
-      <div className="detail-shell">
-        <section className="panel">
-          <video
-            className="video-player"
-            src={getMediaUrl(template.previewVideoPath)}
-            poster={getMediaUrl(template.thumbnailPath)}
-            controls
-            playsInline
-          />
-
-          <div className="stack-lg">
-            <h2>{template.name}</h2>
-            <p className="muted detail-copy">{template.description || "当前模板还没有补充描述。"}</p>
-          </div>
-
-          <div className="meta-list">
-            <div className="meta-item">
-              <span>创建时间</span>
-              {new Date(template.createdAt).toLocaleString("zh-CN", { hour12: false })}
+        <div className="detail-layout">
+          <section className="detail-main-card">
+            <div className="detail-player">
+              <video
+                className="video-player"
+                src={getMediaUrl(template.previewVideoPath)}
+                poster={getMediaUrl(template.thumbnailPath)}
+                controls
+                playsInline
+              />
             </div>
-            <div className="meta-item">
-              <span>上传人</span>
-              {template.uploadedBy}
-            </div>
-            <div className="meta-item">
-              <span>导入方式</span>
-              {template.importMode === "scan" ? "扫描导入" : "后台上传"}
-            </div>
-            <div className="meta-item">
-              <span>来源路径</span>
-              {template.sourcePathKey ?? "后台上传"}
-            </div>
-          </div>
-        </section>
 
-        <aside className="panel">
-          <h3>标签信息</h3>
+            <div className="detail-summary">
+              <span className="section-overline">模板详情</span>
+              <h1>{template.name}</h1>
+              <p>
+                {template.description.trim() || "当前模板还没有补充描述，可先通过预览视频和标签判断是否符合项目需求。"}
+              </p>
+            </div>
 
-          <TemplateTagSection
-            template={template}
-            tagGroups={tagGroups}
-            canEdit={user.role === "admin"}
-          />
+            <div className="detail-meta-list">
+              {metaItems.map((item) => (
+                <article key={item.label} className="detail-meta-item">
+                  <span>{item.label}</span>
+                  <strong>{item.value}</strong>
+                </article>
+              ))}
+            </div>
+          </section>
 
-          <div className="detail-actions">
-            <a className="button-link" href={`/api/templates/${template.id}/download`}>
-              下载模板
-            </a>
-            <Link className="button-link secondary" href={"/library" as Route}>
-              返回列表
-            </Link>
-          </div>
-        </aside>
+          <aside className="detail-side-card">
+            <div className="detail-side-head">
+              <span className="section-overline">下载与标签</span>
+              <h2>素材信息</h2>
+              <p>先确认标签、导入方式和预览内容，再下载源文件进入项目。</p>
+            </div>
+
+            <TemplateTagSection
+              template={template}
+              tagGroups={tagGroups}
+              canEdit={user.role === "admin"}
+            />
+
+            <div className="detail-action-row">
+              <a className="primary-button" href={`/api/templates/${template.id}/download`}>
+                下载源文件
+              </a>
+              <Link className="secondary-button" href={"/library" as Route}>
+                返回素材库
+              </Link>
+            </div>
+          </aside>
+        </div>
       </div>
     </main>
   );

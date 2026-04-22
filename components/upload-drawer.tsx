@@ -79,7 +79,7 @@ export function UploadDrawer({ open, tagGroups, onClose, onUploaded, onTagsChang
 
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) {
-        throw new Error(payload.error ?? "上传失败。");
+        throw new Error(payload.error ?? "上传模板失败。");
       }
 
       setSubmitState({ kind: "success", message: "模板已上传。" });
@@ -90,7 +90,7 @@ export function UploadDrawer({ open, tagGroups, onClose, onUploaded, onTagsChang
     } catch (error) {
       setSubmitState({
         kind: "error",
-        message: error instanceof Error ? error.message : "上传失败。",
+        message: error instanceof Error ? error.message : "上传模板失败。",
       });
     } finally {
       setIsSubmitting(false);
@@ -98,106 +98,113 @@ export function UploadDrawer({ open, tagGroups, onClose, onUploaded, onTagsChang
   };
 
   return (
-    <div className="overlay" onClick={onClose}>
-      <aside className="drawer" onClick={(event) => event.stopPropagation()}>
-        <div className="drawer-header">
+    <div className="drawer-overlay" onClick={onClose}>
+      <aside className="platform-drawer" onClick={(event) => event.stopPropagation()}>
+        <div className="drawer-top">
           <div>
-            <h2>上传模板</h2>
-            <p>管理员上传后，模板会立即进入素材库并可被成员账号访问。</p>
+            <span className="section-overline">上传模板</span>
+            <h2>补齐信息后直接进入结果页</h2>
+            <p>名称、标签、封面、预览视频和源文件会一起写入素材记录。</p>
           </div>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="关闭">
+          <button type="button" className="drawer-close" onClick={onClose} aria-label="关闭">
             ×
           </button>
         </div>
 
-        <form className="form" onSubmit={handleSubmit}>
-          <div className="field">
-            <label htmlFor="name">模板名称</label>
-            <input id="name" name="name" type="text" required placeholder="例如：2026 春季发布会片头" />
-          </div>
+        <form className="drawer-form" onSubmit={handleSubmit}>
+          <label className="field-label" htmlFor="name">
+            模板名称
+          </label>
+          <input id="name" className="text-input" name="name" type="text" required />
 
-          <div className="field">
-            <label htmlFor="description">模板说明</label>
-            <textarea
-              id="description"
-              name="description"
-              placeholder="可填写适用场景、配色、插件依赖、替换方式等说明。"
-            />
-          </div>
+          <label className="field-label" htmlFor="description">
+            模板描述
+          </label>
+          <textarea
+            id="description"
+            className="text-area"
+            name="description"
+            placeholder="补充用途、风格和适用场景，方便结果页搜索。"
+          />
 
           {systemGroups.map((group) => (
-            <div className="group-block" key={group.groupName}>
-              <h4>{group.groupName}</h4>
-              <div className="chip-picker">
-                {group.tags.map((tag) => {
-                  const active = selectedTags.includes(tag.name);
-                  return (
-                    <button
-                      type="button"
-                      key={`${group.groupName}-${tag.id}`}
-                      className={`picker-btn${active ? " active" : ""}`}
-                      onClick={() => toggleTag(tag.name)}
-                    >
-                      {tag.name}
-                    </button>
-                  );
-                })}
+            <div className="drawer-group" key={group.groupName}>
+              <strong>{group.groupName}</strong>
+              <div className="pill-wrap">
+                {group.tags.map((tag) => (
+                  <button
+                    key={`${group.groupName}-${tag.id}`}
+                    type="button"
+                    className={`filter-pill${selectedTags.includes(tag.name) ? " active" : ""}`}
+                    onClick={() => toggleTag(tag.name)}
+                  >
+                    {tag.name}
+                  </button>
+                ))}
               </div>
             </div>
           ))}
 
           <TagCreator tagGroups={availableTagGroups} onCreated={handleTagCreated} />
 
-          <div className="field">
-            <label htmlFor="customTags">自定义标签</label>
-            <input
-              id="customTags"
-              name="customTagsInput"
-              type="text"
-              value={customTags}
-              onChange={(event) => setCustomTags(event.target.value)}
-              placeholder="多个标签用空格、逗号或顿号分隔"
-            />
-          </div>
+          <label className="field-label" htmlFor="customTags">
+            自定义标签
+          </label>
+          <input
+            id="customTags"
+            className="text-input"
+            name="customTagsInput"
+            type="text"
+            value={customTags}
+            onChange={(event) => setCustomTags(event.target.value)}
+            placeholder="使用逗号、顿号或空格分隔多个标签"
+          />
 
-          <div className="field">
-            <label htmlFor="thumbnail">封面图片</label>
-            <input id="thumbnail" name="thumbnail" type="file" accept="image/*" required />
-            <span className="file-note">支持 JPG、PNG、WEBP、GIF，建议横版封面。</span>
-          </div>
+          <label className="field-label" htmlFor="thumbnail">
+            封面图
+          </label>
+          <input id="thumbnail" className="text-input" name="thumbnail" type="file" accept="image/*" required />
 
-          <div className="field">
-            <label htmlFor="previewVideo">预览视频</label>
-            <input id="previewVideo" name="previewVideo" type="file" accept="video/*" required />
-          </div>
+          <label className="field-label" htmlFor="previewVideo">
+            预览视频
+          </label>
+          <input
+            id="previewVideo"
+            className="text-input"
+            name="previewVideo"
+            type="file"
+            accept="video/*"
+            required
+          />
 
-          <div className="field">
-            <label htmlFor="templateFile">模板源文件</label>
-            <input
-              id="templateFile"
-              name="templateFile"
-              type="file"
-              accept=".zip,.aep,.aet,.rar,.7z,application/zip,application/octet-stream"
-              required
-            />
-          </div>
+          <label className="field-label" htmlFor="templateFile">
+            模板源文件
+          </label>
+          <input
+            id="templateFile"
+            className="text-input"
+            name="templateFile"
+            type="file"
+            accept=".zip,.aep,.aet,.rar,.7z,application/zip,application/octet-stream"
+            required
+          />
 
-          <div className="field">
-            <label htmlFor="uploadedBy">上传人</label>
-            <input id="uploadedBy" name="uploadedBy" type="text" placeholder="默认会使用当前管理员名称" />
-          </div>
+          <label className="field-label" htmlFor="uploadedBy">
+            上传人
+          </label>
+          <input id="uploadedBy" className="text-input" name="uploadedBy" type="text" />
 
           {submitState.message ? (
-            <div className={`status ${submitState.kind === "error" ? "error" : "success"}`}>
+            <div className={`form-status${submitState.kind === "error" ? " error" : " success"}`}>
               {submitState.message}
             </div>
           ) : null}
 
-          <div className="toolbar-actions">
-            <button className="button" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "上传中..." : "上传模板"}
+          <div className="drawer-actions">
+            <button className="primary-button" type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "正在上传..." : "提交模板"}
             </button>
-            <button className="button secondary" type="button" onClick={onClose}>
+            <button className="secondary-button" type="button" onClick={onClose}>
               取消
             </button>
           </div>

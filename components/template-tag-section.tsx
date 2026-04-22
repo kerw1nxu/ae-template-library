@@ -15,23 +15,26 @@ export function TemplateTagSection({ template, tagGroups, canEdit }: Props) {
 
   return (
     <>
-      <div className="section-header">
-        <div className="chip-group-label">当前标签</div>
+      <div className="panel-head">
+        <div>
+          <span className="section-overline">标签分组</span>
+          <h3>当前标签</h3>
+        </div>
         {canEdit ? (
-          <button type="button" className="button secondary" onClick={() => setOpen(true)}>
+          <button type="button" className="secondary-button" onClick={() => setOpen(true)}>
             编辑标签
           </button>
         ) : null}
       </div>
 
       {template.groupedTags.length > 0 ? (
-        <div className="stack-md">
+        <div className="tag-section-list">
           {template.groupedTags.map((group) => (
-            <section key={group.groupName}>
-              <div className="chip-group-label chip-group-space">{group.groupName}</div>
-              <div className="tag-row">
+            <section key={group.groupName} className="tag-section-item">
+              <strong>{group.groupName}</strong>
+              <div className="pill-wrap">
                 {group.tags.map((tag) => (
-                  <span className="tag" key={`${group.groupName}-${tag.id}`}>
+                  <span className="filter-pill active" key={`${group.groupName}-${tag.id}`}>
                     {tag.name}
                   </span>
                 ))}
@@ -40,7 +43,7 @@ export function TemplateTagSection({ template, tagGroups, canEdit }: Props) {
           ))}
         </div>
       ) : (
-        <div className="status">当前还没有标签。</div>
+        <div className="field-note">当前还没有标签。</div>
       )}
 
       {canEdit ? (

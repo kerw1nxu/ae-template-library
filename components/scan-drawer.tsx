@@ -32,56 +32,58 @@ export function ScanDrawer({ open, onClose, onScanned }: Props) {
       });
       const payload = (await response.json()) as { result?: ScanResult; error?: string };
       if (!response.ok || !payload.result) {
-        throw new Error(payload.error ?? "扫描失败。");
+        throw new Error(payload.error ?? "扫描目录失败。");
       }
 
       setResult(payload.result);
       await onScanned();
     } catch (scanError) {
-      setError(scanError instanceof Error ? scanError.message : "扫描失败。");
+      setError(scanError instanceof Error ? scanError.message : "扫描目录失败。");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="overlay" onClick={onClose}>
-      <aside className="drawer" onClick={(event) => event.stopPropagation()}>
-        <div className="drawer-header">
+    <div className="drawer-overlay" onClick={onClose}>
+      <aside className="platform-drawer" onClick={(event) => event.stopPropagation()}>
+        <div className="drawer-top">
           <div>
-            <h2>扫描导入目录</h2>
-            <p>扫描 `SCAN_ROOT` 下的子目录，把符合规则的模板素材批量导入到库中。</p>
+            <span className="section-overline">目录扫描</span>
+            <h2>从导入目录补录模板</h2>
+            <p>扫描配置好的根目录，自动同步封面、预览视频和源文件。</p>
           </div>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="关闭">
+          <button type="button" className="drawer-close" onClick={onClose} aria-label="关闭">
             ×
           </button>
         </div>
 
-        <form className="form" onSubmit={handleSubmit}>
-          <div className="field">
-            <label htmlFor="relativePath">扫描相对路径</label>
-            <input
-              id="relativePath"
-              type="text"
-              value={relativePath}
-              onChange={(event) => setRelativePath(event.target.value)}
-              placeholder="默认填写 . 表示扫描根目录"
-            />
-          </div>
+        <form className="drawer-form" onSubmit={handleSubmit}>
+          <label className="field-label" htmlFor="relativePath">
+            扫描相对路径
+          </label>
+          <input
+            id="relativePath"
+            className="text-input"
+            type="text"
+            value={relativePath}
+            onChange={(event) => setRelativePath(event.target.value)}
+            placeholder="默认使用 . 表示扫描根目录"
+          />
 
-          {error ? <div className="status error">{error}</div> : null}
+          {error ? <div className="form-status error">{error}</div> : null}
 
           {result ? (
-            <div className="group-block">
-              <h4>扫描结果</h4>
-              <div className="status">
-                共扫描 {result.scanned} 个目录，新增 {result.created} 个，更新 {result.updated} 个，跳过{" "}
-                {result.skipped} 个。
-              </div>
+            <div className="drawer-group">
+              <strong>扫描结果</strong>
+              <p className="field-note">
+                已扫描 {result.scanned} 个目录，新增 {result.created} 条，更新 {result.updated} 条，跳过{" "}
+                {result.skipped} 条。
+              </p>
               {result.issues.length > 0 ? (
-                <div className="issue-list">
+                <div className="issue-stack">
                   {result.issues.slice(0, 8).map((issue) => (
-                    <div className="status error" key={`${issue.relativePath}-${issue.reason}`}>
+                    <div className="form-status error" key={`${issue.relativePath}-${issue.reason}`}>
                       {issue.relativePath}: {issue.reason}
                     </div>
                   ))}
@@ -90,11 +92,11 @@ export function ScanDrawer({ open, onClose, onScanned }: Props) {
             </div>
           ) : null}
 
-          <div className="toolbar-actions">
-            <button className="button" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "扫描中..." : "开始扫描"}
+          <div className="drawer-actions">
+            <button className="primary-button" type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "正在扫描..." : "开始扫描"}
             </button>
-            <button className="button secondary" type="button" onClick={onClose}>
+            <button className="secondary-button" type="button" onClick={onClose}>
               取消
             </button>
           </div>

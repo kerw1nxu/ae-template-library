@@ -48,7 +48,7 @@ export function TagEditor({ open, onClose, templateId, initialTags, tagGroups }:
 
   const addCustomTag = () => {
     const newTags = customTagInput
-      .split(/[、,，\s]+/)
+      .split(/[,\s，、]+/)
       .map((item) => item.trim())
       .filter(Boolean);
 
@@ -80,96 +80,93 @@ export function TagEditor({ open, onClose, templateId, initialTags, tagGroups }:
 
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) {
-        throw new Error(payload.error ?? "标签保存失败。");
+        throw new Error(payload.error ?? "保存标签失败。");
       }
 
       setStatus("标签已更新。");
       router.refresh();
       onClose();
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "标签保存失败。");
+      setStatus(error instanceof Error ? error.message : "保存标签失败。");
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <div className="overlay" onClick={onClose}>
-      <aside className="drawer" onClick={(event) => event.stopPropagation()}>
-        <div className="drawer-header">
+    <div className="drawer-overlay" onClick={onClose}>
+      <aside className="platform-drawer" onClick={(event) => event.stopPropagation()}>
+        <div className="drawer-top">
           <div>
-            <h2>编辑标签</h2>
-            <p>管理员可以调整系统标签，也可以补充自定义标签。</p>
+            <span className="section-overline">编辑标签</span>
+            <h2>维护模板标签</h2>
+            <p>可以切换系统标签，也可以补充自定义标签，保存后立即刷新详情页。</p>
           </div>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="关闭">
+          <button type="button" className="drawer-close" onClick={onClose} aria-label="关闭">
             ×
           </button>
         </div>
 
-        <div className="form">
-          <div>
-            <div className="chip-group-label chip-group-space">已选标签</div>
-            <div className="tag-row">
+        <div className="drawer-form">
+          <div className="drawer-group">
+            <strong>已选标签</strong>
+            <div className="pill-wrap">
               {selectedTags.length > 0 ? (
                 selectedTags.map((tag) => (
-                  <button type="button" className="tag tag-button" key={tag} onClick={() => toggleTag(tag)}>
+                  <button type="button" className="filter-pill active" key={tag} onClick={() => toggleTag(tag)}>
                     {tag} ×
                   </button>
                 ))
               ) : (
-                <span className="status">还没有选中标签。</span>
+                <span className="field-note">还没有选中标签。</span>
               )}
             </div>
           </div>
 
           {systemGroups.map((group) => (
-            <section key={group.groupName}>
-              <div className="chip-group-label chip-group-space">{group.groupName}</div>
-              <div className="chip-picker">
-                {group.tags.map((tag) => {
-                  const active = selectedTags.includes(tag.name);
-                  return (
-                    <button
-                      type="button"
-                      key={`${group.groupName}-${tag.id}`}
-                      className={`picker-btn${active ? " active" : ""}`}
-                      onClick={() => toggleTag(tag.name)}
-                    >
-                      {tag.name}
-                    </button>
-                  );
-                })}
+            <section key={group.groupName} className="drawer-group">
+              <strong>{group.groupName}</strong>
+              <div className="pill-wrap">
+                {group.tags.map((tag) => (
+                  <button
+                    key={`${group.groupName}-${tag.id}`}
+                    type="button"
+                    className={`filter-pill${selectedTags.includes(tag.name) ? " active" : ""}`}
+                    onClick={() => toggleTag(tag.name)}
+                  >
+                    {tag.name}
+                  </button>
+                ))}
               </div>
             </section>
           ))}
 
           <TagCreator tagGroups={availableTagGroups} onCreated={handleTagCreated} />
 
-          <div className="field">
-            <label htmlFor="customTagInput">自定义标签</label>
-            <div className="inline-field">
-              <input
-                id="customTagInput"
-                type="text"
-                value={customTagInput}
-                onChange={(event) => setCustomTagInput(event.target.value)}
-                placeholder="多个标签用空格、逗号或顿号分隔"
-              />
-              <button type="button" className="button secondary" onClick={addCustomTag}>
-                添加
-              </button>
-            </div>
+          <label className="field-label" htmlFor="customTagInput">
+            自定义标签
+          </label>
+          <div className="drawer-inline-form">
+            <input
+              id="customTagInput"
+              className="text-input"
+              type="text"
+              value={customTagInput}
+              onChange={(event) => setCustomTagInput(event.target.value)}
+              placeholder="用逗号、顿号或空格分隔多个标签"
+            />
+            <button type="button" className="secondary-button" onClick={addCustomTag}>
+              添加
+            </button>
           </div>
 
-          {status ? (
-            <div className={`status${status.includes("失败") ? " error" : " success"}`}>{status}</div>
-          ) : null}
+          {status ? <div className={`form-status${status.includes("失败") ? " error" : " success"}`}>{status}</div> : null}
 
-          <div className="toolbar-actions">
-            <button type="button" className="button" onClick={save} disabled={isSaving}>
-              {isSaving ? "保存中..." : "保存标签"}
+          <div className="drawer-actions">
+            <button type="button" className="primary-button" onClick={save} disabled={isSaving}>
+              {isSaving ? "正在保存..." : "保存标签"}
             </button>
-            <button type="button" className="button secondary" onClick={onClose}>
+            <button type="button" className="secondary-button" onClick={onClose}>
               取消
             </button>
           </div>

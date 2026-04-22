@@ -54,45 +54,40 @@ export function TagCreator({ tagGroups, onCreated }: Props) {
   };
 
   return (
-    <section className="group-block">
-      <h4>新建系统标签</h4>
-      <p className="status">标签会进入对应的系统分组，创建后可直接用于模板上传和标签编辑。</p>
-      <form className="form" onSubmit={submit}>
-        <div className="field">
-          <label htmlFor="tagCreatorName">标签名</label>
-          <input
-            id="tagCreatorName"
-            type="text"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="例如：节日、蓝金色"
-            required
-          />
-        </div>
+    <section className="drawer-group">
+      <strong>新建标签</strong>
+      <p className="field-note">标签会进入对应分组，创建后可以立即用于模板上传和标签编辑。</p>
+      <form className="drawer-inline-form" onSubmit={submit}>
+        <input
+          className="text-input"
+          id="tagCreatorName"
+          type="text"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="标签名"
+          required
+        />
 
-        <div className="field">
-          <label htmlFor="tagCreatorGroup">系统分组</label>
-          <select
-            id="tagCreatorGroup"
-            value={groupName}
-            onChange={(event) => setGroupName(event.target.value)}
-            required
-          >
-            <option value="">请选择分组</option>
-            {groupedOptions.map((group) => (
-              <option key={group.groupName} value={group.groupName}>
-                {group.groupName}
-              </option>
-            ))}
-          </select>
-        </div>
+        <select
+          className="text-input"
+          id="tagCreatorGroup"
+          value={groupName}
+          onChange={(event) => setGroupName(event.target.value)}
+          required
+        >
+          <option value="">选择分组</option>
+          {groupedOptions.map((group) => (
+            <option key={group.groupName} value={group.groupName}>
+              {group.groupName}
+            </option>
+          ))}
+        </select>
 
-        {status ? <div className={`status${isError ? " error" : " success"}`}>{status}</div> : null}
-
-        <button className="button secondary" type="submit" disabled={isSubmitting}>
+        <button className="secondary-button" type="submit" disabled={isSubmitting}>
           {isSubmitting ? "创建中..." : "创建标签"}
         </button>
       </form>
+      {status ? <div className={`form-status${isError ? " error" : " success"}`}>{status}</div> : null}
     </section>
   );
 }

@@ -23,7 +23,7 @@ export function LogoutButton() {
   };
 
   return (
-    <button className="button secondary" type="button" onClick={handleLogout} disabled={isSubmitting}>
+    <button className="secondary-button" type="button" onClick={handleLogout} disabled={isSubmitting}>
       {isSubmitting ? "退出中..." : "退出登录"}
     </button>
   );
