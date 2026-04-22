@@ -49,8 +49,8 @@ export function ScanDrawer({ open, onClose, onScanned }: Props) {
       <aside className="drawer" onClick={(event) => event.stopPropagation()}>
         <div className="drawer-header">
           <div>
-            <h2>扫描现有模板目录</h2>
-            <p>扫描 `SCAN_ROOT` 下的相对目录。每个模板目录里放 1 个图片、1 个视频、1 个模板文件即可，文件名不用固定；如果同类文件有多个，只取第一个。</p>
+            <h2>扫描导入目录</h2>
+            <p>扫描 `SCAN_ROOT` 下的子目录，把符合规则的模板素材批量导入到库中。</p>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="关闭">
             ×
@@ -59,13 +59,13 @@ export function ScanDrawer({ open, onClose, onScanned }: Props) {
 
         <form className="form" onSubmit={handleSubmit}>
           <div className="field">
-            <label htmlFor="relativePath">扫描路径</label>
+            <label htmlFor="relativePath">扫描相对路径</label>
             <input
               id="relativePath"
               type="text"
               value={relativePath}
               onChange={(event) => setRelativePath(event.target.value)}
-              placeholder="默认 . 表示扫描整个导入根目录"
+              placeholder="默认填写 . 表示扫描根目录"
             />
           </div>
 
@@ -75,13 +75,14 @@ export function ScanDrawer({ open, onClose, onScanned }: Props) {
             <div className="group-block">
               <h4>扫描结果</h4>
               <div className="status">
-                已扫描 {result.scanned} 个目录，新增 {result.created} 个，更新 {result.updated} 个，跳过 {result.skipped} 个。
+                共扫描 {result.scanned} 个目录，新增 {result.created} 个，更新 {result.updated} 个，跳过{" "}
+                {result.skipped} 个。
               </div>
               {result.issues.length > 0 ? (
-                <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+                <div className="issue-list">
                   {result.issues.slice(0, 8).map((issue) => (
                     <div className="status error" key={`${issue.relativePath}-${issue.reason}`}>
-                      {issue.relativePath}：{issue.reason}
+                      {issue.relativePath}: {issue.reason}
                     </div>
                   ))}
                 </div>
@@ -89,12 +90,12 @@ export function ScanDrawer({ open, onClose, onScanned }: Props) {
             </div>
           ) : null}
 
-          <div style={{ display: "flex", gap: 12 }}>
+          <div className="toolbar-actions">
             <button className="button" type="submit" disabled={isSubmitting}>
               {isSubmitting ? "扫描中..." : "开始扫描"}
             </button>
             <button className="button secondary" type="button" onClick={onClose}>
-              关闭
+              取消
             </button>
           </div>
         </form>

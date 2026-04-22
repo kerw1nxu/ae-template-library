@@ -48,7 +48,7 @@ export function TagEditor({ open, onClose, templateId, initialTags, tagGroups }:
 
   const addCustomTag = () => {
     const newTags = customTagInput
-      .split(/[，,]/)
+      .split(/[、,，\s]+/)
       .map((item) => item.trim())
       .filter(Boolean);
 
@@ -83,7 +83,7 @@ export function TagEditor({ open, onClose, templateId, initialTags, tagGroups }:
         throw new Error(payload.error ?? "标签保存失败。");
       }
 
-      setStatus("标签已保存。");
+      setStatus("标签已更新。");
       router.refresh();
       onClose();
     } catch (error) {
@@ -99,7 +99,7 @@ export function TagEditor({ open, onClose, templateId, initialTags, tagGroups }:
         <div className="drawer-header">
           <div>
             <h2>编辑标签</h2>
-            <p>可直接选择已有分组标签，创建新的长期标签，或补充一次性的自定义标签。</p>
+            <p>管理员可以调整系统标签，也可以补充自定义标签。</p>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="关闭">
             ×
@@ -108,27 +108,23 @@ export function TagEditor({ open, onClose, templateId, initialTags, tagGroups }:
 
         <div className="form">
           <div>
-            <div className="chip-group-label" style={{ marginBottom: 10 }}>
-              当前标签
-            </div>
+            <div className="chip-group-label chip-group-space">已选标签</div>
             <div className="tag-row">
               {selectedTags.length > 0 ? (
                 selectedTags.map((tag) => (
-                  <button type="button" className="tag" key={tag} onClick={() => toggleTag(tag)}>
+                  <button type="button" className="tag tag-button" key={tag} onClick={() => toggleTag(tag)}>
                     {tag} ×
                   </button>
                 ))
               ) : (
-                <span className="status">暂无标签。</span>
+                <span className="status">还没有选中标签。</span>
               )}
             </div>
           </div>
 
           {systemGroups.map((group) => (
             <section key={group.groupName}>
-              <div className="chip-group-label" style={{ marginBottom: 8 }}>
-                {group.groupName}
-              </div>
+              <div className="chip-group-label chip-group-space">{group.groupName}</div>
               <div className="chip-picker">
                 {group.tags.map((tag) => {
                   const active = selectedTags.includes(tag.name);
@@ -151,13 +147,13 @@ export function TagEditor({ open, onClose, templateId, initialTags, tagGroups }:
 
           <div className="field">
             <label htmlFor="customTagInput">自定义标签</label>
-            <div style={{ display: "flex", gap: 10 }}>
+            <div className="inline-field">
               <input
                 id="customTagInput"
                 type="text"
                 value={customTagInput}
                 onChange={(event) => setCustomTagInput(event.target.value)}
-                placeholder="多个标签用逗号分隔"
+                placeholder="多个标签用空格、逗号或顿号分隔"
               />
               <button type="button" className="button secondary" onClick={addCustomTag}>
                 添加
@@ -169,7 +165,7 @@ export function TagEditor({ open, onClose, templateId, initialTags, tagGroups }:
             <div className={`status${status.includes("失败") ? " error" : " success"}`}>{status}</div>
           ) : null}
 
-          <div style={{ display: "flex", gap: 12 }}>
+          <div className="toolbar-actions">
             <button type="button" className="button" onClick={save} disabled={isSaving}>
               {isSaving ? "保存中..." : "保存标签"}
             </button>

@@ -41,3 +41,28 @@ export type ScanResult = {
   skipped: number;
   issues: ScanIssue[];
 };
+
+export type UserRole = "admin" | "member";
+export type UserStatus = "active" | "disabled";
+
+export type UserRecord = {
+  id: string;
+  username: string;
+  role: UserRole;
+  status: UserStatus;
+  createdAt: string;
+  updatedAt: string;
+  lastLoginAt: string | null;
+};
+
+export type AuthUser = UserRecord;
+
+export type AuditLogRecord = {
+  id: string;
+  actorUserId: string | null;
+  action: string;
+  targetType: string;
+  targetId: string | null;
+  detailsJson: string | null;
+  createdAt: string;
+};

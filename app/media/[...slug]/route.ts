@@ -1,4 +1,8 @@
 import { NextResponse } from "next/server";
+import { requireApiUser } from "@/lib/auth";
+import { getErrorMessage, getErrorStatus } from "@/lib/http";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { getRequestIp } from "@/lib/request";
 import { readStoredFile } from "@/lib/storage";
 
 export const runtime = "nodejs";
@@ -9,6 +13,15 @@ export async function GET(
   context: { params: Promise<{ slug: string[] }> },
 ) {
   try {
+    const user = await requireApiUser();
+    const ip = await getRequestIp();
+    enforceRateLimit({
+      scope: "media-preview",
+      identifier: `${user.id}:${ip}`,
+      limit: 120,
+      windowMs: 60_000,
+    });
+
     const { slug } = await context.params;
     const relativePath = slug.join("/");
     const file = await readStoredFile(relativePath);
@@ -21,9 +34,9 @@ export async function GET(
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "媒体文件读取失败。";
-    const status = /ENOENT|EACCES|EPERM/.test(message) ? 404 : 500;
-
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json(
+      { error: getErrorMessage(error, "媒体资源访问失败。") },
+      { status: getErrorStatus(error) },
+    );
   }
 }

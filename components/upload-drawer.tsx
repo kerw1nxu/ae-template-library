@@ -103,7 +103,7 @@ export function UploadDrawer({ open, tagGroups, onClose, onUploaded, onTagsChang
         <div className="drawer-header">
           <div>
             <h2>上传模板</h2>
-            <p>上传模板文件、封面和预览视频，并为模板配置可长期复用的分组标签或临时自定义标签。</p>
+            <p>管理员上传后，模板会立即进入素材库并可被成员账号访问。</p>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="关闭">
             ×
@@ -113,15 +113,15 @@ export function UploadDrawer({ open, tagGroups, onClose, onUploaded, onTagsChang
         <form className="form" onSubmit={handleSubmit}>
           <div className="field">
             <label htmlFor="name">模板名称</label>
-            <input id="name" name="name" type="text" required placeholder="例如：2026 企业年会开场" />
+            <input id="name" name="name" type="text" required placeholder="例如：2026 春季发布会片头" />
           </div>
 
           <div className="field">
-            <label htmlFor="description">模板描述</label>
+            <label htmlFor="description">模板说明</label>
             <textarea
               id="description"
               name="description"
-              placeholder="可填写适用场景、画面风格、使用说明等信息。"
+              placeholder="可填写适用场景、配色、插件依赖、替换方式等说明。"
             />
           </div>
 
@@ -156,14 +156,14 @@ export function UploadDrawer({ open, tagGroups, onClose, onUploaded, onTagsChang
               type="text"
               value={customTags}
               onChange={(event) => setCustomTags(event.target.value)}
-              placeholder="多个标签用逗号分隔"
+              placeholder="多个标签用空格、逗号或顿号分隔"
             />
           </div>
 
           <div className="field">
-            <label htmlFor="thumbnail">封面图</label>
+            <label htmlFor="thumbnail">封面图片</label>
             <input id="thumbnail" name="thumbnail" type="file" accept="image/*" required />
-            <span className="file-note">建议上传 16:9 或 16:10 的封面图。</span>
+            <span className="file-note">支持 JPG、PNG、WEBP、GIF，建议横版封面。</span>
           </div>
 
           <div className="field">
@@ -172,7 +172,7 @@ export function UploadDrawer({ open, tagGroups, onClose, onUploaded, onTagsChang
           </div>
 
           <div className="field">
-            <label htmlFor="templateFile">模板文件</label>
+            <label htmlFor="templateFile">模板源文件</label>
             <input
               id="templateFile"
               name="templateFile"
@@ -184,7 +184,7 @@ export function UploadDrawer({ open, tagGroups, onClose, onUploaded, onTagsChang
 
           <div className="field">
             <label htmlFor="uploadedBy">上传人</label>
-            <input id="uploadedBy" name="uploadedBy" type="text" placeholder="留空则使用默认值" />
+            <input id="uploadedBy" name="uploadedBy" type="text" placeholder="默认会使用当前管理员名称" />
           </div>
 
           {submitState.message ? (
@@ -193,7 +193,7 @@ export function UploadDrawer({ open, tagGroups, onClose, onUploaded, onTagsChang
             </div>
           ) : null}
 
-          <div style={{ display: "flex", gap: 12 }}>
+          <div className="toolbar-actions">
             <button className="button" type="submit" disabled={isSubmitting}>
               {isSubmitting ? "上传中..." : "上传模板"}
             </button>

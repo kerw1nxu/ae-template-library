@@ -36,7 +36,7 @@ function resolveInsideRoot(rootDir: string, relativePath: string) {
   const relative = path.relative(root, absolute);
 
   if (relative.startsWith("..") || path.isAbsolute(relative)) {
-    throw new Error("非法文件路径");
+    throw new Error("路径越界，拒绝访问。");
   }
 
   return absolute;
@@ -147,7 +147,7 @@ export function absoluteFileToStorageRelative(absolutePath: string) {
   const relative = path.relative(root, absolutePath);
 
   if (relative.startsWith("..") || path.isAbsolute(relative)) {
-    throw new Error("文件不在存储根目录内");
+    throw new Error("文件不在存储目录内。");
   }
 
   return normalizeRelativePath(relative);

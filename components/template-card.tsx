@@ -36,7 +36,7 @@ export function TemplateCard({ item }: Props) {
       }
 
       try {
-        video.playbackRate = 4;
+        video.playbackRate = 1.5;
         await video.play();
       } catch {
         setIsPreviewing(false);

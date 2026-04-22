@@ -1,5 +1,10 @@
 import path from "node:path";
 import { NextResponse } from "next/server";
+import { requireApiUser } from "@/lib/auth";
+import { logAuditEvent } from "@/lib/audit";
+import { getErrorMessage, getErrorStatus } from "@/lib/http";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { getRequestIp } from "@/lib/request";
 import { readStoredFile } from "@/lib/storage";
 import { getTemplateById } from "@/lib/templates";
 
@@ -21,6 +26,15 @@ export async function GET(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
+    const user = await requireApiUser();
+    const ip = await getRequestIp();
+    enforceRateLimit({
+      scope: "template-download",
+      identifier: `${user.id}:${ip}`,
+      limit: 30,
+      windowMs: 60_000,
+    });
+
     const { id } = await context.params;
     const item = await getTemplateById(id);
     if (!item) {
@@ -29,6 +43,13 @@ export async function GET(
 
     const file = await readStoredFile(item.templateFilePath);
     const fileName = toDownloadFileName(item.name, item.templateFilePath);
+
+    await logAuditEvent({
+      actorUserId: user.id,
+      action: "template.download",
+      targetType: "template",
+      targetId: id,
+    });
 
     return new NextResponse(file.stream, {
       headers: {
@@ -39,8 +60,9 @@ export async function GET(
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "模板下载失败。";
-    const status = /ENOENT|EACCES|EPERM/.test(message) ? 503 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json(
+      { error: getErrorMessage(error, "模板下载失败。") },
+      { status: getErrorStatus(error) },
+    );
   }
 }

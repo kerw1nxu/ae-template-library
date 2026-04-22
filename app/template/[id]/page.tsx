@@ -1,6 +1,9 @@
+import type { Route } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { AppHeader } from "@/components/app-header";
 import { TemplateTagSection } from "@/components/template-tag-section";
+import { getCurrentUser } from "@/lib/auth";
 import { getMediaUrl } from "@/lib/media-url";
 import { getTagGroups, getTemplateById } from "@/lib/templates";
 
@@ -11,8 +14,17 @@ export default async function TemplateDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const user = await getCurrentUser();
+  if (!user) {
+    const { id } = await params;
+    redirect(`/login?next=/template/${id}` as Route);
+  }
+
   const { id } = await params;
-  const [template, tagGroups] = await Promise.all([getTemplateById(id), getTagGroups()]);
+  const [template, tagGroups] = await Promise.all([
+    getTemplateById(id),
+    user.role === "admin" ? getTagGroups() : Promise.resolve([]),
+  ]);
 
   if (!template) {
     notFound();
@@ -20,8 +32,10 @@ export default async function TemplateDetailPage({
 
   return (
     <main className="shell">
+      <AppHeader user={user} />
+
       <div className="crumbs">
-        <Link href="/">模板库</Link>
+        <Link href={"/library" as Route}>素材库</Link>
         <span>/</span>
         <span>{template.name}</span>
       </div>
@@ -36,16 +50,14 @@ export default async function TemplateDetailPage({
             playsInline
           />
 
-          <div style={{ marginTop: 22 }}>
+          <div className="stack-lg">
             <h2>{template.name}</h2>
-            <p style={{ color: "var(--muted)", lineHeight: 1.7 }}>
-              {template.description || "暂无补充说明。"}
-            </p>
+            <p className="muted detail-copy">{template.description || "当前模板还没有补充描述。"}</p>
           </div>
 
           <div className="meta-list">
             <div className="meta-item">
-              <span>上传时间</span>
+              <span>创建时间</span>
               {new Date(template.createdAt).toLocaleString("zh-CN", { hour12: false })}
             </div>
             <div className="meta-item">
@@ -53,26 +65,30 @@ export default async function TemplateDetailPage({
               {template.uploadedBy}
             </div>
             <div className="meta-item">
-              <span>入库方式</span>
-              {template.importMode === "scan" ? "扫描导入" : "手工上传"}
+              <span>导入方式</span>
+              {template.importMode === "scan" ? "扫描导入" : "后台上传"}
             </div>
             <div className="meta-item">
-              <span>源目录</span>
-              {template.sourcePathKey || "上传模板"}
+              <span>来源路径</span>
+              {template.sourcePathKey ?? "后台上传"}
             </div>
           </div>
         </section>
 
         <aside className="panel">
-          <h3>标签与操作</h3>
+          <h3>标签信息</h3>
 
-          <TemplateTagSection template={template} tagGroups={tagGroups} />
+          <TemplateTagSection
+            template={template}
+            tagGroups={tagGroups}
+            canEdit={user.role === "admin"}
+          />
 
           <div className="detail-actions">
             <a className="button-link" href={`/api/templates/${template.id}/download`}>
               下载模板
             </a>
-            <Link className="button-link secondary" href="/">
+            <Link className="button-link secondary" href={"/library" as Route}>
               返回列表
             </Link>
           </div>

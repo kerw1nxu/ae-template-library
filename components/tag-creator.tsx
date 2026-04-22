@@ -44,7 +44,7 @@ export function TagCreator({ tagGroups, onCreated }: Props) {
       onCreated(payload.item);
       setName("");
       setGroupName("");
-      setStatus("分组标签已创建，可直接勾选。");
+      setStatus("标签已创建。");
     } catch (error) {
       setIsError(true);
       setStatus(error instanceof Error ? error.message : "创建标签失败。");
@@ -55,30 +55,30 @@ export function TagCreator({ tagGroups, onCreated }: Props) {
 
   return (
     <section className="group-block">
-      <h4>新增分组标签</h4>
-      <p className="status">这里创建的是长期复用标签。一次性补充标签仍使用下面的自定义标签输入框。</p>
+      <h4>新建系统标签</h4>
+      <p className="status">标签会进入对应的系统分组，创建后可直接用于模板上传和标签编辑。</p>
       <form className="form" onSubmit={submit}>
         <div className="field">
-          <label htmlFor="tagCreatorName">标签名称</label>
+          <label htmlFor="tagCreatorName">标签名</label>
           <input
             id="tagCreatorName"
             type="text"
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="例如：发布会"
+            placeholder="例如：节日、蓝金色"
             required
           />
         </div>
 
         <div className="field">
-          <label htmlFor="tagCreatorGroup">所属分类</label>
+          <label htmlFor="tagCreatorGroup">系统分组</label>
           <select
             id="tagCreatorGroup"
             value={groupName}
             onChange={(event) => setGroupName(event.target.value)}
             required
           >
-            <option value="">请选择分类</option>
+            <option value="">请选择分组</option>
             {groupedOptions.map((group) => (
               <option key={group.groupName} value={group.groupName}>
                 {group.groupName}
@@ -90,7 +90,7 @@ export function TagCreator({ tagGroups, onCreated }: Props) {
         {status ? <div className={`status${isError ? " error" : " success"}`}>{status}</div> : null}
 
         <button className="button secondary" type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "创建中..." : "创建分组标签"}
+          {isSubmitting ? "创建中..." : "创建标签"}
         </button>
       </form>
     </section>

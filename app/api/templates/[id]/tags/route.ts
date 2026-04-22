@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireApiUser } from "@/lib/auth";
+import { logAuditEvent } from "@/lib/audit";
+import { getErrorMessage, getErrorStatus } from "@/lib/http";
 import { updateTemplateTags } from "@/lib/templates";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +12,7 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
+    const user = await requireApiUser("admin");
     const { id } = await context.params;
     const body = (await request.json()) as { tags?: unknown };
     const tags = Array.isArray(body.tags)
@@ -16,10 +20,20 @@ export async function PATCH(
       : [];
 
     const item = await updateTemplateTags(id, tags);
+
+    await logAuditEvent({
+      actorUserId: user.id,
+      action: "template.tags.update",
+      targetType: "template",
+      targetId: id,
+      details: { tags },
+    });
+
     return NextResponse.json({ item });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "标签保存失败。";
-    const status = message.includes("不存在") ? 404 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json(
+      { error: getErrorMessage(error, "标签更新失败。") },
+      { status: getErrorStatus(error) },
+    );
   }
 }

@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { requireApiUser } from "@/lib/auth";
+import { getErrorMessage, getErrorStatus } from "@/lib/http";
 import { getTemplateById } from "@/lib/templates";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +10,7 @@ export async function GET(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
+    await requireApiUser();
     const { id } = await context.params;
     const item = await getTemplateById(id);
     if (!item) {
@@ -17,8 +20,8 @@ export async function GET(
     return NextResponse.json({ item });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "模板详情加载失败。" },
-      { status: 500 },
+      { error: getErrorMessage(error, "模板详情加载失败。") },
+      { status: getErrorStatus(error) },
     );
   }
 }

@@ -1,28 +1,43 @@
 import { NextResponse } from "next/server";
+import { requireApiUser } from "@/lib/auth";
+import { logAuditEvent } from "@/lib/audit";
+import { getErrorMessage, getErrorStatus } from "@/lib/http";
 import { createGroupedTag, getTagGroups } from "@/lib/templates";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    await requireApiUser();
     const items = await getTagGroups();
     return NextResponse.json({ items });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "标签列表加载失败。" },
-      { status: 500 },
+      { error: getErrorMessage(error, "标签加载失败。") },
+      { status: getErrorStatus(error) },
     );
   }
 }
 
 export async function POST(request: Request) {
   try {
+    const user = await requireApiUser("admin");
     const body = (await request.json()) as { name?: unknown; groupName?: unknown };
     const tag = await createGroupedTag(String(body.name ?? ""), String(body.groupName ?? ""));
+
+    await logAuditEvent({
+      actorUserId: user.id,
+      action: "tag.create",
+      targetType: "tag",
+      targetId: String(tag.id),
+      details: { name: tag.name, groupName: tag.groupName },
+    });
+
     return NextResponse.json({ item: tag }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "标签创建失败。";
-    const status = /不能为空|无效|已存在/.test(message) ? 400 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json(
+      { error: getErrorMessage(error, "标签创建失败。") },
+      { status: getErrorStatus(error) },
+    );
   }
 }

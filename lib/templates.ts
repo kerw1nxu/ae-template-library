@@ -15,6 +15,7 @@ import {
   locateTemplateAssets,
   saveUploadedFiles,
 } from "@/lib/storage";
+import { HttpError, invariant } from "@/lib/http";
 import type {
   ScanIssue,
   ScanResult,
@@ -120,12 +121,10 @@ export async function createGroupedTag(name: string, groupName: string): Promise
   const normalizedName = name.trim();
   const normalizedGroup = groupName.trim();
 
-  if (!normalizedName) {
-    throw new Error("标签名称不能为空。");
-  }
+  invariant(normalizedName, 400, "标签名不能为空。");
 
   if (!SYSTEM_TAG_GROUP_NAMES.includes(normalizedGroup)) {
-    throw new Error("标签分类无效。");
+    throw new HttpError(400, "标签分组不合法。");
   }
 
   const existing = await queryFirst<{
@@ -137,7 +136,7 @@ export async function createGroupedTag(name: string, groupName: string): Promise
 
   if (existing) {
     if (String(existing.group_name) !== normalizedGroup) {
-      throw new Error("同名标签已存在于其他分类中。");
+      throw new HttpError(400, "同名标签已经存在于其他分组。");
     }
 
     return {
@@ -160,9 +159,7 @@ export async function createGroupedTag(name: string, groupName: string): Promise
     is_system: number;
   }>("SELECT id, name, group_name, is_system FROM tags WHERE name = ?", [normalizedName]);
 
-  if (!created) {
-    throw new Error("标签创建失败。");
-  }
+  invariant(created, 500, "标签创建失败。");
 
   return {
     id: Number(created.id),
@@ -340,7 +337,7 @@ export function splitCustomTags(rawValue: string) {
   return Array.from(
     new Set(
       rawValue
-        .split(/[，,]/)
+        .split(/[、,，\s]+/)
         .map((item) => item.trim())
         .filter(Boolean),
     ),
@@ -401,7 +398,7 @@ export async function createTemplateEntry(input: {
 }) {
   const id = randomUUID();
   const createdAt = new Date().toISOString();
-  const uploadedBy = input.uploadedBy?.trim() || "局域网用户";
+  const uploadedBy = input.uploadedBy?.trim() || "管理员";
   const allTags = [...input.systemTags, ...input.customTags];
   const tagIds = await resolveTagIds(allTags);
   const stored = await saveUploadedFiles({
@@ -435,9 +432,7 @@ export async function createTemplateEntry(input: {
 
 export async function updateTemplateTags(templateId: string, tagNames: string[]) {
   const template = await queryFirst<{ id: string }>("SELECT id FROM templates WHERE id = ?", [templateId]);
-  if (!template) {
-    throw new Error("模板不存在");
-  }
+  invariant(template, 404, "模板不存在。");
 
   const tagIds = await resolveTagIds(tagNames);
 
@@ -451,7 +446,11 @@ export async function updateTemplateTags(templateId: string, tagNames: string[])
   return getTemplateById(templateId);
 }
 
-function isMissingScanAsset(assets: { thumbnailFile: string | null; previewFile: string | null; templateFile: string | null }) {
+function isMissingScanAsset(assets: {
+  thumbnailFile: string | null;
+  previewFile: string | null;
+  templateFile: string | null;
+}) {
   return !assets.thumbnailFile || !assets.previewFile || !assets.templateFile;
 }
 
@@ -477,7 +476,7 @@ export async function scanTemplateLibrary(relativePath = "."): Promise<ScanResul
     const templateName = dir.name.trim();
     if (!templateName) {
       result.skipped += 1;
-      result.issues.push(scanIssue(dir.relativePath, dir.name, "目录名为空，无法作为模板名称"));
+      result.issues.push(scanIssue(dir.relativePath, dir.name, "目录名称不能为空。"));
       continue;
     }
 
@@ -488,7 +487,7 @@ export async function scanTemplateLibrary(relativePath = "."): Promise<ScanResul
         scanIssue(
           dir.relativePath,
           templateName,
-          "目录内缺少 cover.*、preview.* 或 template.* 之一",
+          "目录中必须同时包含封面图、预览视频和模板源文件。",
         ),
       );
       continue;
