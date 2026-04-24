@@ -47,6 +47,19 @@ function extFromFileName(fileName: string, fallback: string) {
   return ext || fallback;
 }
 
+function assertAllowedFile(file: File, allowedExtensions: string[], label: string, maxBytes: number) {
+  const ext = extFromFileName(file.name, "");
+  if (!allowedExtensions.includes(ext)) {
+    throw new Error(`${label}文件类型不支持。`);
+  }
+
+  if (file.size > maxBytes) {
+    throw new Error(`${label}文件过大。`);
+  }
+
+  return ext;
+}
+
 export function resolveStoragePath(relativePath: string) {
   return resolveInsideRoot(STORAGE_ROOT, relativePath);
 }
@@ -69,9 +82,9 @@ export async function saveUploadedFiles({
   const targetDir = resolveStoragePath(path.posix.join("templates", templateId));
   await fs.mkdir(targetDir, { recursive: true });
 
-  const thumbnailExt = extFromFileName(thumbnail.name, ".jpg");
-  const previewExt = extFromFileName(previewVideo.name, ".mp4");
-  const sourceExt = extFromFileName(templateFile.name, ".zip");
+  const thumbnailExt = assertAllowedFile(thumbnail, IMAGE_EXTENSIONS, "封面图", 30 * 1024 * 1024);
+  const previewExt = assertAllowedFile(previewVideo, VIDEO_EXTENSIONS, "预览视频", 2 * 1024 * 1024 * 1024);
+  const sourceExt = assertAllowedFile(templateFile, TEMPLATE_EXTENSIONS, "模板", 4 * 1024 * 1024 * 1024);
 
   const thumbnailRelative = path.posix.join("templates", templateId, `thumbnail${thumbnailExt}`);
   const previewRelative = path.posix.join("templates", templateId, `preview${previewExt}`);

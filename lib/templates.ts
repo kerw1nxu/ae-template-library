@@ -2,27 +2,16 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { Database } from "sql.js";
-import { execute, queryAll, queryFirst, transaction } from "@/lib/db";
-import {
-  CUSTOM_TAG_GROUP,
-  SCAN_IMPORT_MODE,
-  SYSTEM_TAG_GROUP_NAMES,
-  UPLOAD_IMPORT_MODE,
-} from "@/lib/constants";
+import { SCAN_IMPORT_MODE, UPLOAD_IMPORT_MODE } from "@/lib/constants";
+import { queryAll, queryFirst, transaction, execute } from "@/lib/db";
 import {
   absoluteFileToStorageRelative,
   getScanDirectories,
   locateTemplateAssets,
   saveUploadedFiles,
 } from "@/lib/storage";
-import type {
-  ScanIssue,
-  ScanResult,
-  TagGroup,
-  TagRecord,
-  TemplateDetail,
-  TemplateListItem,
-} from "@/lib/types";
+import { getTagGroups, resolveTagIds } from "@/lib/tags";
+import type { CurrentUser, ScanIssue, ScanResult, TagRecord, TemplateDetail, TemplateListItem } from "@/lib/types";
 
 type SearchOptions = {
   query?: string;
@@ -39,136 +28,43 @@ type TemplateRow = {
   created_at: string;
   uploaded_by: string;
   tag_names: string | null;
-  source_path_key?: string | null;
-  import_mode?: string | null;
+  source_path_key: string | null;
+  import_mode: string | null;
+  deleted_at: string | null;
+  deleted_by: string | null;
 };
 
 function parseTagsCsv(value: string | null | undefined) {
-  if (!value) {
-    return [];
-  }
-
   return value
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter(Boolean);
+    ? value
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+    : [];
 }
 
-function rowToListItem(row: TemplateRow): TemplateListItem {
+function listCapabilities(viewer?: CurrentUser | null) {
+  const loggedIn = Boolean(viewer);
+  return {
+    canPreview: loggedIn,
+    canOpenDetail: loggedIn,
+    canDownload: loggedIn,
+    canDelete: viewer?.role === "admin",
+  };
+}
+
+function rowToListItem(row: TemplateRow, viewer?: CurrentUser | null): TemplateListItem {
+  const capabilities = listCapabilities(viewer);
   return {
     id: row.id,
     name: row.name,
     description: row.description,
     thumbnailPath: row.thumbnail_path,
-    previewVideoPath: row.preview_video_path,
+    previewVideoPath: capabilities.canPreview ? row.preview_video_path : undefined,
     createdAt: row.created_at,
     uploadedBy: row.uploaded_by,
     tags: parseTagsCsv(row.tag_names),
-  };
-}
-
-async function getTagRows() {
-  return queryAll<{
-    id: number;
-    name: string;
-    group_name: string;
-    is_system: number;
-  }>(
-    `
-      SELECT id, name, group_name, is_system
-      FROM tags
-      ORDER BY
-        CASE WHEN group_name = ? THEN 1 ELSE 0 END,
-        group_name ASC,
-        is_system DESC,
-        name COLLATE NOCASE ASC
-    `,
-    [CUSTOM_TAG_GROUP],
-  );
-}
-
-async function resolveTagIds(tagNames: string[]) {
-  const uniqueNames = Array.from(new Set(tagNames.map((item) => item.trim()).filter(Boolean)));
-  const tagIds = new Set<number>();
-
-  for (const tag of uniqueNames) {
-    const existing = await queryFirst<{ id: number; is_system: number }>(
-      "SELECT id, is_system FROM tags WHERE name = ?",
-      [tag],
-    );
-
-    if (existing) {
-      tagIds.add(Number(existing.id));
-      continue;
-    }
-
-    await execute(
-      "INSERT INTO tags (name, group_name, is_system) VALUES (?, ?, 0)",
-      [tag, CUSTOM_TAG_GROUP],
-    );
-
-    const created = await queryFirst<{ id: number }>("SELECT id FROM tags WHERE name = ?", [tag]);
-    if (created) {
-      tagIds.add(Number(created.id));
-    }
-  }
-
-  return Array.from(tagIds);
-}
-
-export async function createGroupedTag(name: string, groupName: string): Promise<TagRecord> {
-  const normalizedName = name.trim();
-  const normalizedGroup = groupName.trim();
-
-  if (!normalizedName) {
-    throw new Error("标签名称不能为空。");
-  }
-
-  if (!SYSTEM_TAG_GROUP_NAMES.includes(normalizedGroup)) {
-    throw new Error("标签分类无效。");
-  }
-
-  const existing = await queryFirst<{
-    id: number;
-    name: string;
-    group_name: string;
-    is_system: number;
-  }>("SELECT id, name, group_name, is_system FROM tags WHERE name = ?", [normalizedName]);
-
-  if (existing) {
-    if (String(existing.group_name) !== normalizedGroup) {
-      throw new Error("同名标签已存在于其他分类中。");
-    }
-
-    return {
-      id: Number(existing.id),
-      name: String(existing.name),
-      groupName: String(existing.group_name),
-      isSystem: Boolean(existing.is_system),
-    };
-  }
-
-  await execute("INSERT INTO tags (name, group_name, is_system) VALUES (?, ?, 0)", [
-    normalizedName,
-    normalizedGroup,
-  ]);
-
-  const created = await queryFirst<{
-    id: number;
-    name: string;
-    group_name: string;
-    is_system: number;
-  }>("SELECT id, name, group_name, is_system FROM tags WHERE name = ?", [normalizedName]);
-
-  if (!created) {
-    throw new Error("标签创建失败。");
-  }
-
-  return {
-    id: Number(created.id),
-    name: String(created.name),
-    groupName: String(created.group_name),
-    isSystem: Boolean(created.is_system),
+    ...capabilities,
   };
 }
 
@@ -178,147 +74,133 @@ async function buildGroupedTags(templateId: string) {
     name: string;
     group_name: string;
     is_system: number;
+    is_enabled: number;
+    sort_order: number;
   }>(
     `
-      SELECT tags.id, tags.name, tags.group_name, tags.is_system
+      SELECT tags.id, tags.name, tags.group_name, tags.is_system, tags.is_enabled, tags.sort_order
       FROM template_tags
       JOIN tags ON tags.id = template_tags.tag_id
+      JOIN tag_groups ON tag_groups.name = tags.group_name
       WHERE template_tags.template_id = ?
-      ORDER BY
-        CASE WHEN tags.group_name = ? THEN 1 ELSE 0 END,
-        tags.group_name ASC,
-        tags.name COLLATE NOCASE ASC
+        AND tags.is_enabled = 1
+        AND tag_groups.is_enabled = 1
+      ORDER BY tag_groups.sort_order ASC, tags.sort_order ASC, tags.name COLLATE NOCASE ASC
     `,
-    [templateId, CUSTOM_TAG_GROUP],
+    [templateId],
   );
 
-  const groupedMap = new Map<string, TagRecord[]>();
-  for (const tag of tagRows) {
-    const bucket = groupedMap.get(String(tag.group_name)) ?? [];
-    bucket.push({
-      id: Number(tag.id),
-      name: String(tag.name),
-      groupName: String(tag.group_name),
-      isSystem: Boolean(tag.is_system),
-    });
-    groupedMap.set(String(tag.group_name), bucket);
-  }
+  const groups = await getTagGroups();
+  const grouped = new Map(groups.map((group) => [group.groupName, { ...group, tags: [] as TagRecord[] }]));
 
-  return Array.from(groupedMap.entries()).map(([groupName, tags]) => ({
-    groupName,
-    tags,
-  }));
-}
-
-export async function getTagGroups(): Promise<TagGroup[]> {
-  const rows = await getTagRows();
-  const grouped = new Map<string, TagRecord[]>();
-
-  for (const row of rows) {
-    const record: TagRecord = {
+  for (const row of tagRows) {
+    const bucket = grouped.get(String(row.group_name));
+    if (!bucket) {
+      continue;
+    }
+    bucket.tags.push({
       id: Number(row.id),
       name: String(row.name),
       groupName: String(row.group_name),
       isSystem: Boolean(row.is_system),
-    };
-
-    const bucket = grouped.get(record.groupName) ?? [];
-    bucket.push(record);
-    grouped.set(record.groupName, bucket);
+      isEnabled: Boolean(row.is_enabled),
+      sortOrder: Number(row.sort_order),
+    });
   }
 
-  return Array.from(grouped.entries()).map(([groupName, tags]) => ({
-    groupName,
-    tags,
-  }));
+  return Array.from(grouped.values()).filter((group) => group.tags.length > 0);
 }
 
-export async function searchTemplates(options: SearchOptions = {}) {
+export async function searchTemplates(options: SearchOptions = {}, viewer?: CurrentUser | null) {
   const query = (options.query ?? "").trim();
   const tags = Array.from(new Set((options.tags ?? []).filter(Boolean)));
-  const values: Array<string | number> = [];
-  const conditions: string[] = [];
+  const params: Array<string | number> = [];
+  const conditions = ["templates.deleted_at IS NULL"];
 
   if (query) {
     conditions.push(`
       (
-        t.name LIKE ?
+        templates.name LIKE ?
         OR EXISTS (
           SELECT 1
-          FROM template_tags ttx
-          JOIN tags tgx ON tgx.id = ttx.tag_id
-          WHERE ttx.template_id = t.id
-            AND tgx.name LIKE ?
+          FROM template_tags search_tt
+          JOIN tags search_tags ON search_tags.id = search_tt.tag_id
+          WHERE search_tt.template_id = templates.id
+            AND search_tags.is_enabled = 1
+            AND search_tags.name LIKE ?
         )
       )
     `);
-    const pattern = `%${query}%`;
-    values.push(pattern, pattern);
+    params.push(`%${query}%`, `%${query}%`);
   }
 
   if (tags.length > 0) {
-    const placeholders = tags.map(() => "?").join(", ");
     conditions.push(`
-      t.id IN (
-        SELECT ttf.template_id
-        FROM template_tags ttf
-        JOIN tags tgf ON tgf.id = ttf.tag_id
-        WHERE tgf.name IN (${placeholders})
-        GROUP BY ttf.template_id
-        HAVING COUNT(DISTINCT tgf.name) = ?
+      templates.id IN (
+        SELECT filter_tt.template_id
+        FROM template_tags filter_tt
+        JOIN tags filter_tags ON filter_tags.id = filter_tt.tag_id
+        WHERE filter_tags.is_enabled = 1
+          AND filter_tags.name IN (${tags.map(() => "?").join(", ")})
+        GROUP BY filter_tt.template_id
+        HAVING COUNT(DISTINCT filter_tags.name) = ?
       )
     `);
-    values.push(...tags, tags.length);
+    params.push(...tags, tags.length);
   }
 
-  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
   const rows = await queryAll<TemplateRow>(
     `
       SELECT
-        t.id,
-        t.name,
-        t.description,
-        t.thumbnail_path,
-        t.preview_video_path,
-        t.template_file_path,
-        t.created_at,
-        t.uploaded_by,
-        t.source_path_key,
-        t.import_mode,
-        GROUP_CONCAT(DISTINCT tg.name) AS tag_names
-      FROM templates t
-      LEFT JOIN template_tags tt ON tt.template_id = t.id
-      LEFT JOIN tags tg ON tg.id = tt.tag_id
-      ${whereClause}
-      GROUP BY t.id
-      ORDER BY t.created_at DESC, t.name COLLATE NOCASE ASC
+        templates.id,
+        templates.name,
+        templates.description,
+        templates.thumbnail_path,
+        templates.preview_video_path,
+        templates.template_file_path,
+        templates.created_at,
+        templates.uploaded_by,
+        templates.source_path_key,
+        templates.import_mode,
+        templates.deleted_at,
+        templates.deleted_by,
+        GROUP_CONCAT(DISTINCT tags.name) AS tag_names
+      FROM templates
+      LEFT JOIN template_tags ON template_tags.template_id = templates.id
+      LEFT JOIN tags ON tags.id = template_tags.tag_id AND tags.is_enabled = 1
+      WHERE ${conditions.join(" AND ")}
+      GROUP BY templates.id
+      ORDER BY templates.created_at DESC, templates.name COLLATE NOCASE ASC
     `,
-    values,
+    params,
   );
 
-  return rows.map(rowToListItem);
+  return rows.map((row) => rowToListItem(row, viewer));
 }
 
-export async function getTemplateById(id: string): Promise<TemplateDetail | null> {
+export async function getTemplateById(id: string, viewer?: CurrentUser | null): Promise<TemplateDetail | null> {
   const row = await queryFirst<TemplateRow>(
     `
       SELECT
-        t.id,
-        t.name,
-        t.description,
-        t.thumbnail_path,
-        t.preview_video_path,
-        t.template_file_path,
-        t.created_at,
-        t.uploaded_by,
-        t.source_path_key,
-        t.import_mode,
-        GROUP_CONCAT(DISTINCT tg.name) AS tag_names
-      FROM templates t
-      LEFT JOIN template_tags tt ON tt.template_id = t.id
-      LEFT JOIN tags tg ON tg.id = tt.tag_id
-      WHERE t.id = ?
-      GROUP BY t.id
+        templates.id,
+        templates.name,
+        templates.description,
+        templates.thumbnail_path,
+        templates.preview_video_path,
+        templates.template_file_path,
+        templates.created_at,
+        templates.uploaded_by,
+        templates.source_path_key,
+        templates.import_mode,
+        templates.deleted_at,
+        templates.deleted_by,
+        GROUP_CONCAT(DISTINCT tags.name) AS tag_names
+      FROM templates
+      LEFT JOIN template_tags ON template_tags.template_id = templates.id
+      LEFT JOIN tags ON tags.id = template_tags.tag_id AND tags.is_enabled = 1
+      WHERE templates.id = ?
+        AND templates.deleted_at IS NULL
+      GROUP BY templates.id
     `,
     [id],
   );
@@ -328,12 +210,39 @@ export async function getTemplateById(id: string): Promise<TemplateDetail | null
   }
 
   return {
-    ...rowToListItem(row),
-    templateFilePath: String(row.template_file_path),
+    ...rowToListItem(row, viewer),
+    previewVideoPath: row.preview_video_path,
+    templateFilePath: row.template_file_path,
     groupedTags: await buildGroupedTags(id),
-    sourcePathKey: row.source_path_key ? String(row.source_path_key) : null,
-    importMode: row.import_mode ? String(row.import_mode) : null,
+    sourcePathKey: row.source_path_key,
+    importMode: row.import_mode,
+    deletedAt: row.deleted_at,
+    deletedBy: row.deleted_by,
   };
+}
+
+export async function getMediaAccess(relativePath: string, viewer?: CurrentUser | null) {
+  const row = await queryFirst<{ thumbnail_path: string; preview_video_path: string }>(
+    `
+      SELECT thumbnail_path, preview_video_path
+      FROM templates
+      WHERE deleted_at IS NULL
+        AND (thumbnail_path = ? OR preview_video_path = ?)
+    `,
+    [relativePath, relativePath],
+  );
+
+  if (!row) {
+    return { allowed: false, status: 404, reason: "媒体文件不存在。" };
+  }
+  if (String(row.thumbnail_path) === relativePath) {
+    return { allowed: true, status: 200, reason: "" };
+  }
+  if (!viewer) {
+    return { allowed: false, status: 401, reason: "登录后才能播放预览视频。" };
+  }
+
+  return { allowed: true, status: 200, reason: "" };
 }
 
 export function splitCustomTags(rawValue: string) {
@@ -392,7 +301,7 @@ async function insertTemplateWithTagIds(
 export async function createTemplateEntry(input: {
   name: string;
   description: string;
-  uploadedBy?: string;
+  uploadedBy: string;
   systemTags: string[];
   customTags: string[];
   thumbnail: File;
@@ -401,9 +310,7 @@ export async function createTemplateEntry(input: {
 }) {
   const id = randomUUID();
   const createdAt = new Date().toISOString();
-  const uploadedBy = input.uploadedBy?.trim() || "局域网用户";
-  const allTags = [...input.systemTags, ...input.customTags];
-  const tagIds = await resolveTagIds(allTags);
+  const tagIds = await resolveTagIds([...input.systemTags, ...input.customTags]);
   const stored = await saveUploadedFiles({
     templateId: id,
     thumbnail: input.thumbnail,
@@ -411,8 +318,8 @@ export async function createTemplateEntry(input: {
     templateFile: input.templateFile,
   });
 
-  await transaction(async (db) => {
-    await insertTemplateWithTagIds(
+  await transaction((db) =>
+    insertTemplateWithTagIds(
       db,
       {
         id,
@@ -422,25 +329,26 @@ export async function createTemplateEntry(input: {
         previewVideoPath: stored.previewRelative,
         templateFilePath: stored.sourceRelative,
         createdAt,
-        uploadedBy,
-        sourcePathKey: null,
+        uploadedBy: input.uploadedBy,
         importMode: UPLOAD_IMPORT_MODE,
       },
       tagIds,
-    );
-  });
+    ),
+  );
 
   return getTemplateById(id);
 }
 
 export async function updateTemplateTags(templateId: string, tagNames: string[]) {
-  const template = await queryFirst<{ id: string }>("SELECT id FROM templates WHERE id = ?", [templateId]);
+  const template = await queryFirst<{ id: string }>(
+    "SELECT id FROM templates WHERE id = ? AND deleted_at IS NULL",
+    [templateId],
+  );
   if (!template) {
     throw new Error("模板不存在");
   }
 
   const tagIds = await resolveTagIds(tagNames);
-
   await transaction((db) => {
     db.run("DELETE FROM template_tags WHERE template_id = ?", [templateId]);
     for (const tagId of tagIds) {
@@ -451,16 +359,43 @@ export async function updateTemplateTags(templateId: string, tagNames: string[])
   return getTemplateById(templateId);
 }
 
-function isMissingScanAsset(assets: { thumbnailFile: string | null; previewFile: string | null; templateFile: string | null }) {
-  return !assets.thumbnailFile || !assets.previewFile || !assets.templateFile;
+export async function softDeleteTemplate(templateId: string, adminId: string) {
+  const template = await queryFirst<{ id: string }>(
+    "SELECT id FROM templates WHERE id = ? AND deleted_at IS NULL",
+    [templateId],
+  );
+  if (!template) {
+    throw new Error("模板不存在");
+  }
+
+  await execute("UPDATE templates SET deleted_at = ?, deleted_by = ? WHERE id = ?", [
+    new Date().toISOString(),
+    adminId,
+    templateId,
+  ]);
+}
+
+export async function recordDownloadEvent(input: {
+  templateId: string;
+  userId: string;
+  ip: string;
+  userAgent: string;
+}) {
+  await execute(
+    `
+      INSERT INTO download_events (id, template_id, user_id, downloaded_at, ip, user_agent)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `,
+    [randomUUID(), input.templateId, input.userId, new Date().toISOString(), input.ip, input.userAgent],
+  );
 }
 
 function scanIssue(relativePath: string, templateName: string, reason: string): ScanIssue {
-  return {
-    relativePath,
-    templateName,
-    reason,
-  };
+  return { relativePath, templateName, reason };
+}
+
+function isMissingScanAsset(assets: { thumbnailFile: string | null; previewFile: string | null; templateFile: string | null }) {
+  return !assets.thumbnailFile || !assets.previewFile || !assets.templateFile;
 }
 
 export async function scanTemplateLibrary(relativePath = "."): Promise<ScanResult> {
@@ -484,13 +419,7 @@ export async function scanTemplateLibrary(relativePath = "."): Promise<ScanResul
     const assets = await locateTemplateAssets(dir.absolutePath);
     if (isMissingScanAsset(assets)) {
       result.skipped += 1;
-      result.issues.push(
-        scanIssue(
-          dir.relativePath,
-          templateName,
-          "目录内缺少 cover.*、preview.* 或 template.* 之一",
-        ),
-      );
+      result.issues.push(scanIssue(dir.relativePath, templateName, "目录内缺少图片、视频或模板文件"));
       continue;
     }
 
@@ -507,7 +436,7 @@ export async function scanTemplateLibrary(relativePath = "."): Promise<ScanResul
         db.run(
           `
             UPDATE templates
-            SET name = ?, thumbnail_path = ?, preview_video_path = ?, template_file_path = ?, import_mode = ?
+            SET name = ?, thumbnail_path = ?, preview_video_path = ?, template_file_path = ?, import_mode = ?, deleted_at = NULL, deleted_by = NULL
             WHERE id = ?
           `,
           [templateName, thumbnailPath, previewVideoPath, templateFilePath, SCAN_IMPORT_MODE, existing.id],
@@ -518,8 +447,8 @@ export async function scanTemplateLibrary(relativePath = "."): Promise<ScanResul
     }
 
     const id = randomUUID();
-    await transaction(async (db) => {
-      await insertTemplateWithTagIds(
+    await transaction((db) =>
+      insertTemplateWithTagIds(
         db,
         {
           id,
@@ -534,8 +463,8 @@ export async function scanTemplateLibrary(relativePath = "."): Promise<ScanResul
           importMode: SCAN_IMPORT_MODE,
         },
         [],
-      );
-    });
+      ),
+    );
     result.created += 1;
   }
 

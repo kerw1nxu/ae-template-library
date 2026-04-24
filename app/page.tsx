@@ -1,17 +1,22 @@
 import { HomeClient } from "@/components/home-client";
-import { getTagGroups, searchTemplates } from "@/lib/templates";
+import { getCurrentUser } from "@/lib/auth";
+import { getTagGroups } from "@/lib/tags";
+import { searchTemplates } from "@/lib/templates";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
+  const currentUser = await getCurrentUser();
   const [initialTemplates, initialTagGroups] = await Promise.all([
-    searchTemplates(),
+    searchTemplates({}, currentUser),
     getTagGroups(),
   ]);
 
   return (
-    <main className="shell">
-      <HomeClient initialTemplates={initialTemplates} initialTagGroups={initialTagGroups} />
-    </main>
+    <HomeClient
+      initialTemplates={initialTemplates}
+      initialTagGroups={initialTagGroups}
+      currentUser={currentUser}
+    />
   );
 }

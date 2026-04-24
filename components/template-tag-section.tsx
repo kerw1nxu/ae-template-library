@@ -7,9 +7,10 @@ import type { TagGroup, TemplateDetail } from "@/lib/types";
 type Props = {
   template: TemplateDetail;
   tagGroups: TagGroup[];
+  canEdit: boolean;
 };
 
-export function TemplateTagSection({ template, tagGroups }: Props) {
+export function TemplateTagSection({ template, tagGroups, canEdit }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -18,9 +19,11 @@ export function TemplateTagSection({ template, tagGroups }: Props) {
         <div className="chip-group-label" style={{ marginRight: 0 }}>
           当前标签
         </div>
-        <button type="button" className="button secondary" onClick={() => setOpen(true)}>
-          编辑
-        </button>
+        {canEdit ? (
+          <button type="button" className="button secondary" onClick={() => setOpen(true)}>
+            编辑
+          </button>
+        ) : null}
       </div>
 
       {template.groupedTags.length > 0 ? (
@@ -46,13 +49,15 @@ export function TemplateTagSection({ template, tagGroups }: Props) {
         </div>
       )}
 
-      <TagEditor
-        open={open}
-        onClose={() => setOpen(false)}
-        templateId={template.id}
-        initialTags={template.tags}
-        tagGroups={tagGroups}
-      />
+      {canEdit ? (
+        <TagEditor
+          open={open}
+          onClose={() => setOpen(false)}
+          templateId={template.id}
+          initialTags={template.tags}
+          tagGroups={tagGroups}
+        />
+      ) : null}
     </>
   );
 }

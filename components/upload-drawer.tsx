@@ -9,6 +9,7 @@ import type { TagGroup, TagRecord } from "@/lib/types";
 type Props = {
   open: boolean;
   tagGroups: TagGroup[];
+  canManageTags: boolean;
   onClose: () => void;
   onUploaded: () => Promise<void> | void;
   onTagsChanged?: () => Promise<void> | void;
@@ -19,7 +20,7 @@ type SubmitState =
   | { kind: "error"; message: string }
   | { kind: "success"; message: string };
 
-export function UploadDrawer({ open, tagGroups, onClose, onUploaded, onTagsChanged }: Props) {
+export function UploadDrawer({ open, tagGroups, canManageTags, onClose, onUploaded, onTagsChanged }: Props) {
   const [availableTagGroups, setAvailableTagGroups] = useState(tagGroups);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [customTags, setCustomTags] = useState("");
@@ -27,7 +28,10 @@ export function UploadDrawer({ open, tagGroups, onClose, onUploaded, onTagsChang
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const systemGroups = useMemo(
-    () => availableTagGroups.filter((group) => group.groupName !== CUSTOM_TAG_GROUP),
+    () =>
+      availableTagGroups.filter(
+        (group) => group.groupName !== CUSTOM_TAG_GROUP && group.isEnabled,
+      ),
     [availableTagGroups],
   );
 
@@ -129,7 +133,7 @@ export function UploadDrawer({ open, tagGroups, onClose, onUploaded, onTagsChang
             <div className="group-block" key={group.groupName}>
               <h4>{group.groupName}</h4>
               <div className="chip-picker">
-                {group.tags.map((tag) => {
+                {group.tags.filter((tag) => tag.isEnabled).map((tag) => {
                   const active = selectedTags.includes(tag.name);
                   return (
                     <button
@@ -146,7 +150,7 @@ export function UploadDrawer({ open, tagGroups, onClose, onUploaded, onTagsChang
             </div>
           ))}
 
-          <TagCreator tagGroups={availableTagGroups} onCreated={handleTagCreated} />
+          {canManageTags ? <TagCreator tagGroups={availableTagGroups} onCreated={handleTagCreated} /> : null}
 
           <div className="field">
             <label htmlFor="customTags">自定义标签</label>
@@ -180,11 +184,6 @@ export function UploadDrawer({ open, tagGroups, onClose, onUploaded, onTagsChang
               accept=".zip,.aep,.aet,.rar,.7z,application/zip,application/octet-stream"
               required
             />
-          </div>
-
-          <div className="field">
-            <label htmlFor="uploadedBy">上传人</label>
-            <input id="uploadedBy" name="uploadedBy" type="text" placeholder="留空则使用默认值" />
           </div>
 
           {submitState.message ? (

@@ -17,7 +17,7 @@ export function TagCreator({ tagGroups, onCreated }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const groupedOptions = useMemo(
-    () => tagGroups.filter((group) => group.groupName !== CUSTOM_TAG_GROUP),
+    () => tagGroups.filter((group) => group.groupName !== CUSTOM_TAG_GROUP && group.isEnabled),
     [tagGroups],
   );
 

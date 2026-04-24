@@ -1,8 +1,11 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { TemplateDeleteButton } from "@/components/template-delete-button";
 import { TemplateTagSection } from "@/components/template-tag-section";
+import { getCurrentUser } from "@/lib/auth";
 import { getMediaUrl } from "@/lib/media-url";
-import { getTagGroups, getTemplateById } from "@/lib/templates";
+import { getTagGroups } from "@/lib/tags";
+import { getTemplateById } from "@/lib/templates";
 
 export const dynamic = "force-dynamic";
 
@@ -12,14 +15,19 @@ export default async function TemplateDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [template, tagGroups] = await Promise.all([getTemplateById(id), getTagGroups()]);
+  const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    redirect(`/login?next=${encodeURIComponent(`/template/${id}`)}` as never);
+  }
+
+  const [template, tagGroups] = await Promise.all([getTemplateById(id, currentUser), getTagGroups()]);
 
   if (!template) {
     notFound();
   }
 
   return (
-    <main className="shell">
+    <main className="site-page detail-page">
       <div className="crumbs">
         <Link href="/">模板库</Link>
         <span>/</span>
@@ -27,7 +35,7 @@ export default async function TemplateDetailPage({
       </div>
 
       <div className="detail-shell">
-        <section className="panel">
+        <section className="panel detail-main">
           <video
             className="video-player"
             src={getMediaUrl(template.previewVideoPath)}
@@ -36,9 +44,9 @@ export default async function TemplateDetailPage({
             playsInline
           />
 
-          <div style={{ marginTop: 22 }}>
+          <div className="detail-title">
             <h2>{template.name}</h2>
-            <p style={{ color: "var(--muted)", lineHeight: 1.7 }}>
+            <p>
               {template.description || "暂无补充说明。"}
             </p>
           </div>
@@ -63,10 +71,14 @@ export default async function TemplateDetailPage({
           </div>
         </section>
 
-        <aside className="panel">
+        <aside className="panel detail-side">
           <h3>标签与操作</h3>
 
-          <TemplateTagSection template={template} tagGroups={tagGroups} />
+          <TemplateTagSection
+            template={template}
+            tagGroups={tagGroups}
+            canEdit={currentUser.role === "admin"}
+          />
 
           <div className="detail-actions">
             <a className="button-link" href={`/api/templates/${template.id}/download`}>
@@ -76,6 +88,8 @@ export default async function TemplateDetailPage({
               返回列表
             </Link>
           </div>
+
+          {currentUser.role === "admin" ? <TemplateDeleteButton templateId={template.id} /> : null}
         </aside>
       </div>
     </main>

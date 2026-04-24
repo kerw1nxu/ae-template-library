@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authErrorResponse, requireUser, getCurrentUser } from "@/lib/auth";
 import { createTemplateEntry, searchTemplates, splitCustomTags } from "@/lib/templates";
 
 export const dynamic = "force-dynamic";
@@ -19,13 +20,14 @@ function readJsonArray(value: FormDataEntryValue | null) {
 
 export async function GET(request: NextRequest) {
   try {
+    const viewer = await getCurrentUser();
     const query = request.nextUrl.searchParams.get("query") ?? "";
     const tags = (request.nextUrl.searchParams.get("tags") ?? "")
       .split(",")
       .map((item) => item.trim())
       .filter(Boolean);
 
-    const items = await searchTemplates({ query, tags });
+    const items = await searchTemplates({ query, tags }, viewer);
     return NextResponse.json({ items });
   } catch (error) {
     return NextResponse.json(
@@ -37,11 +39,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireUser();
     const formData = await request.formData();
 
     const name = String(formData.get("name") ?? "").trim();
     const description = String(formData.get("description") ?? "").trim();
-    const uploadedBy = String(formData.get("uploadedBy") ?? "").trim();
     const thumbnail = formData.get("thumbnail");
     const previewVideo = formData.get("previewVideo");
     const templateFile = formData.get("templateFile");
@@ -67,7 +69,7 @@ export async function POST(request: NextRequest) {
     const item = await createTemplateEntry({
       name,
       description,
-      uploadedBy,
+      uploadedBy: user.username,
       systemTags,
       customTags,
       thumbnail,
@@ -77,8 +79,15 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ item }, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && /登录|管理员权限/.test(error.message)) {
+      return authErrorResponse(error);
+    }
     const message = error instanceof Error ? error.message : "上传失败。";
-    const status = /非法文件路径|ENOENT|EACCES|EPERM/.test(message) ? 503 : 500;
+    const status = /不能为空|请上传|不支持|过大/.test(message)
+      ? 400
+      : /非法文件路径|ENOENT|EACCES|EPERM/.test(message)
+        ? 503
+        : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }

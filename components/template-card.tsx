@@ -13,6 +13,7 @@ export function TemplateCard({ item }: Props) {
   const [isPreviewing, setIsPreviewing] = useState(false);
   const delayRef = useRef<number | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canPreview = item.canPreview && Boolean(item.previewVideoPath);
 
   useEffect(() => {
     return () => {
@@ -23,6 +24,10 @@ export function TemplateCard({ item }: Props) {
   }, []);
 
   const handleEnter = () => {
+    if (!canPreview) {
+      return;
+    }
+
     if (delayRef.current) {
       window.clearTimeout(delayRef.current);
     }
@@ -36,12 +41,12 @@ export function TemplateCard({ item }: Props) {
       }
 
       try {
-        video.playbackRate = 4;
+        video.playbackRate = 3;
         await video.play();
       } catch {
         setIsPreviewing(false);
       }
-    }, 180);
+    }, 160);
   };
 
   const handleLeave = () => {
@@ -59,15 +64,10 @@ export function TemplateCard({ item }: Props) {
     setIsPreviewing(false);
   };
 
-  return (
-    <Link
-      href={`/template/${item.id}`}
-      className="card"
-      onMouseEnter={handleEnter}
-      onMouseLeave={handleLeave}
-    >
-      <div className="card-media">
-        <img src={getMediaUrl(item.thumbnailPath)} alt={item.name} />
+  const media = (
+    <div className="card-media">
+      <img src={getMediaUrl(item.thumbnailPath)} alt={item.name} loading="lazy" />
+      {canPreview && item.previewVideoPath ? (
         <video
           ref={videoRef}
           src={getMediaUrl(item.previewVideoPath)}
@@ -75,11 +75,23 @@ export function TemplateCard({ item }: Props) {
           loop
           playsInline
           preload="metadata"
-          style={{ opacity: isPreviewing ? 1 : 0, transition: "opacity 0.18s ease" }}
+          style={{ opacity: isPreviewing ? 1 : 0 }}
         />
-      </div>
+      ) : (
+        <span className="locked-badge">登录后预览</span>
+      )}
+    </div>
+  );
+
+  const content = (
+    <>
+      {media}
       <div className="card-body">
         <h2>{item.name}</h2>
+        <div className="card-meta">
+          <span>{item.uploadedBy}</span>
+          <span>{new Date(item.createdAt).toLocaleDateString("zh-CN")}</span>
+        </div>
         <div className="tag-row">
           {item.tags.slice(0, 4).map((tag) => (
             <span className="tag" key={`${item.id}-${tag}`}>
@@ -88,6 +100,25 @@ export function TemplateCard({ item }: Props) {
           ))}
         </div>
       </div>
+    </>
+  );
+
+  if (!item.canOpenDetail) {
+    return (
+      <article className="template-card locked-card" onMouseEnter={handleEnter} onMouseLeave={handleLeave}>
+        {content}
+      </article>
+    );
+  }
+
+  return (
+    <Link
+      href={`/template/${item.id}`}
+      className="template-card"
+      onMouseEnter={handleEnter}
+      onMouseLeave={handleLeave}
+    >
+      {content}
     </Link>
   );
 }

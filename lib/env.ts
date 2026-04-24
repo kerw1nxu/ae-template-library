@@ -13,3 +13,11 @@ export const SITE_ORIGIN = process.env.SITE_ORIGIN ?? "http://127.0.0.1:3000";
 export const SCAN_ROOT = path.resolve(
   process.env.SCAN_ROOT ?? path.join(STORAGE_ROOT, "imports"),
 );
+
+export const PUBLIC_ACCESS_MODE = process.env.PUBLIC_ACCESS_MODE ?? "list";
+
+export const COOKIE_SECURE =
+  process.env.COOKIE_SECURE === "true" ||
+  (!process.env.COOKIE_SECURE && process.env.NODE_ENV === "production");
+
+export const TRUST_PROXY = process.env.TRUST_PROXY === "true";

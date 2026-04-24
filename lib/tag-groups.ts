@@ -28,6 +28,8 @@ export function mergeTagIntoGroups(tagGroups: TagGroup[], tag: TagRecord) {
     ...nextGroups,
     {
       groupName: tag.groupName,
+      isEnabled: true,
+      sortOrder: 999,
       tags: [tag],
     },
   ];

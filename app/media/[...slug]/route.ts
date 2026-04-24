@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { readStoredFile } from "@/lib/storage";
+import { getMediaAccess } from "@/lib/templates";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,6 +13,12 @@ export async function GET(
   try {
     const { slug } = await context.params;
     const relativePath = slug.join("/");
+    const viewer = await getCurrentUser();
+    const access = await getMediaAccess(relativePath, viewer);
+    if (!access.allowed) {
+      return NextResponse.json({ error: access.reason }, { status: access.status });
+    }
+
     const file = await readStoredFile(relativePath);
 
     return new NextResponse(file.stream, {

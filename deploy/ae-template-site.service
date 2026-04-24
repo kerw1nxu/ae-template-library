@@ -11,7 +11,9 @@ EnvironmentFile=-/opt/ae-template-site/.env.local
 ExecStart=/usr/bin/npm run start
 Restart=always
 RestartSec=5
-User=root
+User=ae-template-site
+Group=ae-template-site
+UMask=0077
 
 [Install]
 WantedBy=multi-user.target

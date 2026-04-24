@@ -4,7 +4,7 @@ import initSqlJs, { type Database, type SqlJsStatic } from "sql.js";
 import { CUSTOM_TAG_GROUP, SYSTEM_TAG_GROUPS } from "@/lib/constants";
 import { DATABASE_PATH } from "@/lib/env";
 
-type SqlValue = string | number | null;
+export type SqlValue = string | number | null;
 
 let sqlJsPromise: Promise<SqlJsStatic> | null = null;
 let dbPromise: Promise<Database> | null = null;
@@ -39,9 +39,49 @@ async function persistDatabase(db: Database) {
   await fs.writeFile(DATABASE_PATH, db.export());
 }
 
-async function runMigrations(db: Database) {
+function createV1Schema(db: Database) {
   db.exec(`
     PRAGMA foreign_keys = ON;
+
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL CHECK (role IN ('user', 'admin')),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      disabled_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      token_hash TEXT NOT NULL UNIQUE,
+      user_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      revoked_at TEXT,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS tag_groups (
+      name TEXT PRIMARY KEY,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      is_enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      group_name TEXT NOT NULL,
+      is_system INTEGER NOT NULL DEFAULT 0,
+      is_enabled INTEGER NOT NULL DEFAULT 1,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (group_name) REFERENCES tag_groups(name) ON UPDATE CASCADE
+    );
 
     CREATE TABLE IF NOT EXISTS templates (
       id TEXT PRIMARY KEY,
@@ -51,14 +91,11 @@ async function runMigrations(db: Database) {
       preview_video_path TEXT NOT NULL,
       template_file_path TEXT NOT NULL,
       created_at TEXT NOT NULL,
-      uploaded_by TEXT NOT NULL DEFAULT 'LAN User'
-    );
-
-    CREATE TABLE IF NOT EXISTS tags (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      group_name TEXT NOT NULL,
-      is_system INTEGER NOT NULL DEFAULT 1
+      uploaded_by TEXT NOT NULL,
+      source_path_key TEXT UNIQUE,
+      import_mode TEXT,
+      deleted_at TEXT,
+      deleted_by TEXT
     );
 
     CREATE TABLE IF NOT EXISTS template_tags (
@@ -69,55 +106,73 @@ async function runMigrations(db: Database) {
       FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS download_events (
+      id TEXT PRIMARY KEY,
+      template_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      downloaded_at TEXT NOT NULL,
+      ip TEXT,
+      user_agent TEXT,
+      FOREIGN KEY (template_id) REFERENCES templates(id),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_sessions_token_hash ON sessions(token_hash);
+    CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
     CREATE INDEX IF NOT EXISTS idx_tags_group_name ON tags(group_name);
+    CREATE INDEX IF NOT EXISTS idx_tags_enabled ON tags(is_enabled);
+    CREATE INDEX IF NOT EXISTS idx_tag_groups_enabled ON tag_groups(is_enabled);
+    CREATE INDEX IF NOT EXISTS idx_templates_deleted_at ON templates(deleted_at);
     CREATE INDEX IF NOT EXISTS idx_template_tags_template_id ON template_tags(template_id);
     CREATE INDEX IF NOT EXISTS idx_template_tags_tag_id ON template_tags(tag_id);
+    CREATE INDEX IF NOT EXISTS idx_download_events_template_id ON download_events(template_id);
+    CREATE INDEX IF NOT EXISTS idx_download_events_user_id ON download_events(user_id);
   `);
+}
 
-  const templateColumns = toRows<{ name: string }>(db, "PRAGMA table_info(templates)");
-  const templateColumnNames = new Set(templateColumns.map((item) => String(item.name)));
+function seedSystemTags(db: Database) {
+  const now = new Date().toISOString();
 
-  if (!templateColumnNames.has("source_path_key")) {
-    db.run("ALTER TABLE templates ADD COLUMN source_path_key TEXT");
-  }
+  for (const [groupIndex, group] of SYSTEM_TAG_GROUPS.entries()) {
+    db.run(
+      `
+        INSERT INTO tag_groups (name, sort_order, is_enabled, created_at, updated_at)
+        VALUES (?, ?, 1, ?, ?)
+        ON CONFLICT(name) DO UPDATE SET
+          sort_order = excluded.sort_order,
+          is_enabled = 1,
+          updated_at = excluded.updated_at
+      `,
+      [group.groupName, groupIndex * 10, now, now],
+    );
 
-  if (!templateColumnNames.has("import_mode")) {
-    db.run("ALTER TABLE templates ADD COLUMN import_mode TEXT");
-  }
-
-  db.run("CREATE UNIQUE INDEX IF NOT EXISTS idx_templates_source_path_key ON templates(source_path_key)");
-
-  for (const group of SYSTEM_TAG_GROUPS) {
-    for (const name of group.tags) {
+    for (const [tagIndex, tagName] of group.tags.entries()) {
       db.run(
         `
-          INSERT INTO tags (name, group_name, is_system)
-          VALUES (?, ?, 1)
+          INSERT INTO tags (name, group_name, is_system, is_enabled, sort_order, created_at, updated_at)
+          VALUES (?, ?, 1, 1, ?, ?, ?)
           ON CONFLICT(name) DO UPDATE SET
             group_name = excluded.group_name,
-            is_system = excluded.is_system
+            is_system = 1,
+            sort_order = excluded.sort_order,
+            updated_at = excluded.updated_at
         `,
-        [name, group.groupName],
+        [tagName, group.groupName, tagIndex * 10, now, now],
       );
     }
   }
 
-  const customGroupCount = toRows<{ count: number }>(
-    db,
-    "SELECT COUNT(*) as count FROM tags WHERE group_name = ?",
-    [CUSTOM_TAG_GROUP],
-  )[0]?.count;
-
-  if (!customGroupCount) {
-    db.run(
-      "INSERT OR IGNORE INTO tags (name, group_name, is_system) VALUES ('__custom_placeholder__', ?, 0)",
-      [CUSTOM_TAG_GROUP],
-    );
-    db.run("DELETE FROM tags WHERE name = '__custom_placeholder__'");
-  }
+  db.run(
+    `
+      INSERT INTO tag_groups (name, sort_order, is_enabled, created_at, updated_at)
+      VALUES (?, 1000, 1, ?, ?)
+      ON CONFLICT(name) DO UPDATE SET updated_at = excluded.updated_at
+    `,
+    [CUSTOM_TAG_GROUP, now, now],
+  );
 }
 
-async function createDatabase() {
+async function initializeDatabase() {
   const SQL = await getSqlJs();
   await fs.mkdir(path.dirname(DATABASE_PATH), { recursive: true });
 
@@ -131,14 +186,15 @@ async function createDatabase() {
     db = new SQL.Database();
   }
 
-  await runMigrations(db);
+  createV1Schema(db);
+  seedSystemTags(db);
   await persistDatabase(db);
   return db;
 }
 
 export async function getDb() {
   if (!dbPromise) {
-    dbPromise = createDatabase();
+    dbPromise = initializeDatabase();
   }
 
   return dbPromise;

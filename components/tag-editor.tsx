@@ -24,7 +24,10 @@ export function TagEditor({ open, onClose, templateId, initialTags, tagGroups }:
   const [isSaving, setIsSaving] = useState(false);
 
   const systemGroups = useMemo(
-    () => availableTagGroups.filter((group) => group.groupName !== CUSTOM_TAG_GROUP),
+    () =>
+      availableTagGroups.filter(
+        (group) => group.groupName !== CUSTOM_TAG_GROUP && group.isEnabled,
+      ),
     [availableTagGroups],
   );
 
@@ -130,7 +133,7 @@ export function TagEditor({ open, onClose, templateId, initialTags, tagGroups }:
                 {group.groupName}
               </div>
               <div className="chip-picker">
-                {group.tags.map((tag) => {
+                {group.tags.filter((tag) => tag.isEnabled).map((tag) => {
                   const active = selectedTags.includes(tag.name);
                   return (
                     <button
