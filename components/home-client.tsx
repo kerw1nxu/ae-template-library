@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { Icon } from "@/components/icons";
 import { ScanDrawer } from "@/components/scan-drawer";
 import { TemplateCard } from "@/components/template-card";
 import { UploadDrawer } from "@/components/upload-drawer";
@@ -64,7 +65,7 @@ export function HomeClient({ initialTemplates, initialTagGroups, currentUser }: 
         setTagGroups(payload.items);
       }
     } catch {
-      // keep current tags
+      // Keep the current tag list if refresh fails.
     }
   };
 
@@ -95,14 +96,19 @@ export function HomeClient({ initialTemplates, initialTagGroups, currentUser }: 
       <header className="topbar">
         <Link href="/" className="brand">
           <span className="brand-mark" aria-hidden="true" />
-          <span className="brand-title">AE 模板库</span>
+          <span className="brand-title">AE 模板素材库</span>
         </Link>
 
         <nav className="topnav" aria-label="主导航">
-          <a href="#templates">找模板</a>
-          <a href="#categories">分类筛选</a>
-          {currentUser ? <button type="button" onClick={() => setIsUploadOpen(true)}>上传</button> : null}
-          {currentUser?.role === "admin" ? <Link href="/admin">后台管理</Link> : null}
+          <a href="#templates">模板</a>
+          <a href="#categories">分类</a>
+          {currentUser ? (
+            <button type="button" onClick={() => setIsUploadOpen(true)}>
+              <Icon name="upload" />
+              上传
+            </button>
+          ) : null}
+          {currentUser?.role === "admin" ? <Link href="/admin">后台</Link> : null}
         </nav>
 
         <div className="account-area">
@@ -121,23 +127,39 @@ export function HomeClient({ initialTemplates, initialTagGroups, currentUser }: 
         </div>
       </header>
 
-      <section className="search-band">
+      <section className="workbench-summary" aria-label="素材库状态">
+        <div>
+          <span>当前结果</span>
+          <strong>{templates.length}</strong>
+        </div>
+        <div>
+          <span>分类组</span>
+          <strong>{visibleGroups.length}</strong>
+        </div>
+        <div>
+          <span>访问状态</span>
+          <strong>{currentUser ? "已登录" : "访客"}</strong>
+        </div>
+      </section>
+
+      <section className="search-band" aria-label="模板搜索">
         <div className="search-panel">
           <label className="search-input">
-            <span aria-hidden="true">⌕</span>
+            <Icon name="search" />
             <input
               type="text"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="输入关键词、模板名称或标签"
+              placeholder="搜索模板名称、关键词或标签"
             />
           </label>
           <button className="search-button" type="button" onClick={() => void loadTemplates()}>
+            <Icon name="search" />
             搜索
           </button>
         </div>
         {!currentUser ? (
-          <p className="public-note">访客可浏览模板列表；登录后可播放预览、查看详情和下载。</p>
+          <p className="public-note">当前为访客模式。登录后可打开详情页、预览视频并下载模板包。</p>
         ) : null}
       </section>
 
@@ -146,7 +168,7 @@ export function HomeClient({ initialTemplates, initialTagGroups, currentUser }: 
           <div className="category-menu" key={group.groupName}>
             <button type="button" className="category-trigger">
               {group.groupName}
-              <span aria-hidden="true">⌄</span>
+              <span aria-hidden="true">▾</span>
             </button>
             <div className="category-dropdown">
               {group.tags
@@ -169,7 +191,7 @@ export function HomeClient({ initialTemplates, initialTagGroups, currentUser }: 
         ))}
         {selectedTags.length > 0 ? (
           <button className="reset-filter" type="button" onClick={() => setSelectedTags([])}>
-            重置筛选
+            清除筛选
           </button>
         ) : null}
       </section>
@@ -187,17 +209,20 @@ export function HomeClient({ initialTemplates, initialTagGroups, currentUser }: 
       <section className="template-section" id="templates">
         <div className="section-head">
           <div>
-            <h1>团队 AE 模板</h1>
-            <p>{isLoading ? "正在更新列表..." : `共显示 ${templates.length} 个模板`}</p>
+            <p className="eyebrow">Library</p>
+            <h1>模板库</h1>
+            <p>{isLoading ? "正在更新列表..." : `共 ${templates.length} 个模板`}</p>
           </div>
           <div className="section-actions">
             {currentUser?.role === "admin" ? (
               <button className="ghost-button" type="button" onClick={() => setIsScanOpen(true)}>
+                <Icon name="scan" />
                 扫描导入
               </button>
             ) : null}
             {currentUser ? (
               <button className="primary-button" type="button" onClick={() => setIsUploadOpen(true)}>
+                <Icon name="upload" />
                 上传模板
               </button>
             ) : (
@@ -211,7 +236,7 @@ export function HomeClient({ initialTemplates, initialTagGroups, currentUser }: 
         {error ? <div className="empty-state">{error}</div> : null}
 
         {!error && templates.length === 0 ? (
-          <div className="empty-state">{isLoading ? "正在加载模板..." : "没有找到符合条件的模板。"}</div>
+          <div className="empty-state">{isLoading ? "正在加载模板..." : "没有找到匹配的模板。"}</div>
         ) : null}
 
         <div className="template-grid">

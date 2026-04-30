@@ -15,12 +15,17 @@ type Props = {
   tagGroups: TagGroup[];
 };
 
+type Status = {
+  kind: "idle" | "success" | "error";
+  message: string;
+};
+
 export function TagEditor({ open, onClose, templateId, initialTags, tagGroups }: Props) {
   const router = useRouter();
   const [availableTagGroups, setAvailableTagGroups] = useState(tagGroups);
   const [selectedTags, setSelectedTags] = useState<string[]>(initialTags);
   const [customTagInput, setCustomTagInput] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState<Status>({ kind: "idle", message: "" });
   const [isSaving, setIsSaving] = useState(false);
 
   const systemGroups = useMemo(
@@ -51,7 +56,7 @@ export function TagEditor({ open, onClose, templateId, initialTags, tagGroups }:
 
   const addCustomTag = () => {
     const newTags = customTagInput
-      .split(/[，,]/)
+      .split(/[,，]/)
       .map((item) => item.trim())
       .filter(Boolean);
 
@@ -70,7 +75,7 @@ export function TagEditor({ open, onClose, templateId, initialTags, tagGroups }:
 
   const save = async () => {
     setIsSaving(true);
-    setStatus("");
+    setStatus({ kind: "idle", message: "" });
 
     try {
       const response = await fetch(`/api/templates/${templateId}/tags`, {
@@ -86,11 +91,11 @@ export function TagEditor({ open, onClose, templateId, initialTags, tagGroups }:
         throw new Error(payload.error ?? "标签保存失败。");
       }
 
-      setStatus("标签已保存。");
+      setStatus({ kind: "success", message: "标签已保存。" });
       router.refresh();
       onClose();
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "标签保存失败。");
+      setStatus({ kind: "error", message: error instanceof Error ? error.message : "标签保存失败。" });
     } finally {
       setIsSaving(false);
     }
@@ -101,8 +106,9 @@ export function TagEditor({ open, onClose, templateId, initialTags, tagGroups }:
       <aside className="drawer" onClick={(event) => event.stopPropagation()}>
         <div className="drawer-header">
           <div>
+            <p className="eyebrow">Tags</p>
             <h2>编辑标签</h2>
-            <p>可直接选择已有分组标签，创建新的长期标签，或补充一次性的自定义标签。</p>
+            <p>调整这个模板在列表筛选和详情页中展示的标签。</p>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="关闭">
             ×
@@ -111,13 +117,11 @@ export function TagEditor({ open, onClose, templateId, initialTags, tagGroups }:
 
         <div className="form">
           <div>
-            <div className="chip-group-label" style={{ marginBottom: 10 }}>
-              当前标签
-            </div>
-            <div className="tag-row">
+            <div className="chip-group-label">已选标签</div>
+            <div className="tag-row selected-tags-area">
               {selectedTags.length > 0 ? (
                 selectedTags.map((tag) => (
-                  <button type="button" className="tag" key={tag} onClick={() => toggleTag(tag)}>
+                  <button type="button" className="tag removable" key={tag} onClick={() => toggleTag(tag)}>
                     {tag} ×
                   </button>
                 ))
@@ -128,10 +132,8 @@ export function TagEditor({ open, onClose, templateId, initialTags, tagGroups }:
           </div>
 
           {systemGroups.map((group) => (
-            <section key={group.groupName}>
-              <div className="chip-group-label" style={{ marginBottom: 8 }}>
-                {group.groupName}
-              </div>
+            <section className="tag-group-section" key={group.groupName}>
+              <div className="chip-group-label">{group.groupName}</div>
               <div className="chip-picker">
                 {group.tags.filter((tag) => tag.isEnabled).map((tag) => {
                   const active = selectedTags.includes(tag.name);
@@ -154,7 +156,7 @@ export function TagEditor({ open, onClose, templateId, initialTags, tagGroups }:
 
           <div className="field">
             <label htmlFor="customTagInput">自定义标签</label>
-            <div style={{ display: "flex", gap: 10 }}>
+            <div className="inline-control">
               <input
                 id="customTagInput"
                 type="text"
@@ -163,18 +165,16 @@ export function TagEditor({ open, onClose, templateId, initialTags, tagGroups }:
                 placeholder="多个标签用逗号分隔"
               />
               <button type="button" className="button secondary" onClick={addCustomTag}>
-                添加
+                加入
               </button>
             </div>
           </div>
 
-          {status ? (
-            <div className={`status${status.includes("失败") ? " error" : " success"}`}>{status}</div>
-          ) : null}
+          {status.message ? <div className={`status ${status.kind}`}>{status.message}</div> : null}
 
-          <div style={{ display: "flex", gap: 12 }}>
+          <div className="form-actions">
             <button type="button" className="button" onClick={save} disabled={isSaving}>
-              {isSaving ? "保存中..." : "保存标签"}
+              {isSaving ? "正在保存..." : "保存标签"}
             </button>
             <button type="button" className="button secondary" onClick={onClose}>
               取消

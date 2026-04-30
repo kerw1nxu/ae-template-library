@@ -40,8 +40,9 @@ export function LoginForm({ nextPath }: Props) {
   return (
     <form className="login-card" onSubmit={submit}>
       <div>
-        <h1>登录模板库</h1>
-        <p>登录后可播放预览、查看详情、上传和下载模板。</p>
+        <p className="eyebrow">受保护的素材库</p>
+        <h1>登录 AE 模板素材库</h1>
+        <p>登录后可打开详情、预览视频并下载模板包。管理员可继续上传、扫描和维护标签。</p>
       </div>
 
       <div className="field">
@@ -57,7 +58,7 @@ export function LoginForm({ nextPath }: Props) {
       {error ? <div className="status error">{error}</div> : null}
 
       <button className="primary-button" type="submit" disabled={isSubmitting}>
-        {isSubmitting ? "登录中..." : "登录"}
+        {isSubmitting ? "正在登录..." : "登录"}
       </button>
     </form>
   );

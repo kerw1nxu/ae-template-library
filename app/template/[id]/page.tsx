@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { Icon } from "@/components/icons";
 import { TemplateDeleteButton } from "@/components/template-delete-button";
 import { TemplateTagSection } from "@/components/template-tag-section";
 import { getCurrentUser } from "@/lib/auth";
@@ -29,7 +30,7 @@ export default async function TemplateDetailPage({
   return (
     <main className="site-page detail-page">
       <div className="crumbs">
-        <Link href="/">模板库</Link>
+        <Link href="/">素材库</Link>
         <span>/</span>
         <span>{template.name}</span>
       </div>
@@ -45,10 +46,9 @@ export default async function TemplateDetailPage({
           />
 
           <div className="detail-title">
-            <h2>{template.name}</h2>
-            <p>
-              {template.description || "暂无补充说明。"}
-            </p>
+            <p className="eyebrow">Template detail</p>
+            <h1>{template.name}</h1>
+            <p>{template.description || "暂无描述。"}</p>
           </div>
 
           <div className="meta-list">
@@ -61,18 +61,21 @@ export default async function TemplateDetailPage({
               {template.uploadedBy}
             </div>
             <div className="meta-item">
-              <span>入库方式</span>
-              {template.importMode === "scan" ? "扫描导入" : "手工上传"}
+              <span>导入方式</span>
+              {template.importMode === "scan" ? "扫描导入" : "手动上传"}
             </div>
             <div className="meta-item">
-              <span>源目录</span>
-              {template.sourcePathKey || "上传模板"}
+              <span>来源路径</span>
+              {template.sourcePathKey || "手动上传模板"}
             </div>
           </div>
         </section>
 
         <aside className="panel detail-side">
-          <h3>标签与操作</h3>
+          <div>
+            <p className="eyebrow">Tags</p>
+            <h2>标签与下载</h2>
+          </div>
 
           <TemplateTagSection
             template={template}
@@ -82,7 +85,8 @@ export default async function TemplateDetailPage({
 
           <div className="detail-actions">
             <a className="button-link" href={`/api/templates/${template.id}/download`}>
-              下载模板
+              <Icon name="download" />
+              下载模板包
             </a>
             <Link className="button-link secondary" href="/">
               返回列表

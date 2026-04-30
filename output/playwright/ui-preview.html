@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UI Preview</title>
+    <link rel="stylesheet" href="../../app/globals.css" />
+  </head>
+  <body>
+    <main class="site-page">
+      <header class="topbar">
+        <a class="brand" href="#">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-title">AE 模板素材库</span>
+        </a>
+        <nav class="topnav" aria-label="主导航">
+          <a href="#templates">模板</a>
+          <a href="#categories">分类</a>
+          <button type="button">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M7 9l5-5l5 5M12 4v12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            上传
+          </button>
+          <a href="#">后台</a>
+        </nav>
+        <div class="account-area">
+          <span class="account-pill">admin</span>
+          <button class="ghost-button" type="button">退出</button>
+        </div>
+      </header>
+
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">After Effects archive</p>
+          <h1>用更快的方式找到可交付的 AE 模板</h1>
+          <p>统一管理封面、预览视频和模板包。访客可浏览首页，登录后可进入详情、预览和下载。</p>
+        </div>
+        <div class="hero-panel" aria-label="素材库概览">
+          <div><span>当前结果</span><strong>24</strong></div>
+          <div><span>分类组</span><strong>6</strong></div>
+          <div><span>访问状态</span><strong>已登录</strong></div>
+        </div>
+      </section>
+
+      <section class="search-band" aria-label="模板搜索">
+        <div class="search-panel">
+          <label class="search-input">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0-14 0M21 21l-6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <input type="text" placeholder="搜索模板名称、关键词或标签" />
+          </label>
+          <button class="search-button" type="button">搜索</button>
+        </div>
+      </section>
+
+      <section class="category-strip" id="categories" aria-label="分类筛选">
+        <div class="category-menu"><button type="button" class="category-trigger">场景 <span>▾</span></button></div>
+        <div class="category-menu"><button type="button" class="category-trigger">风格 <span>▾</span></button></div>
+        <button class="reset-filter" type="button">清除筛选</button>
+      </section>
+
+      <div class="selected-row">
+        <button type="button" class="selected-tag">发布会 ×</button>
+        <button type="button" class="selected-tag">科技感 ×</button>
+      </div>
+
+      <section class="template-section" id="templates">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Library</p>
+            <h1>模板库</h1>
+            <p>共 24 个模板</p>
+          </div>
+          <div class="section-actions">
+            <button class="ghost-button" type="button">扫描导入</button>
+            <button class="primary-button" type="button">上传模板</button>
+          </div>
+        </div>
+
+        <div class="template-grid">
+          <a href="#" class="template-card">
+            <div class="card-media">
+              <img src="https://picsum.photos/seed/ae-template-1/900/560" alt="企业年会开场" />
+            </div>
+            <div class="card-body">
+              <div>
+                <h2>企业年会开场包装</h2>
+                <p>适合公司年会、发布活动和年度总结片头。</p>
+              </div>
+              <div class="card-meta"><span>admin</span><span>2026/4/30</span></div>
+              <div class="tag-row"><span class="tag">发布会</span><span class="tag">科技感</span></div>
+            </div>
+          </a>
+          <a href="#" class="template-card">
+            <div class="card-media">
+              <img src="https://picsum.photos/seed/ae-template-2/900/560" alt="产品功能展示" />
+            </div>
+            <div class="card-body">
+              <div>
+                <h2>产品功能展示字幕包</h2>
+                <p>适合软件介绍、产品说明和销售演示视频。</p>
+              </div>
+              <div class="card-meta"><span>editor</span><span>2026/4/28</span></div>
+              <div class="tag-row"><span class="tag">字幕</span><span class="tag">商务</span></div>
+            </div>
+          </a>
+          <article class="template-card locked-card">
+            <div class="card-media">
+              <img src="https://picsum.photos/seed/ae-template-3/900/560" alt="锁定模板" />
+              <span class="locked-badge">登录后预览</span>
+            </div>
+            <div class="card-body">
+              <div>
+                <h2>访客锁定模板</h2>
+                <p>用于检查锁定标签和卡片层级。</p>
+              </div>
+              <div class="card-meta"><span>visitor</span><span>2026/4/20</span></div>
+              <div class="tag-row"><span class="tag">封面</span><span class="tag">受保护</span></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="detail-shell" style="margin-top: 42px">
+        <div class="panel detail-main">
+          <div class="video-player"></div>
+          <div class="detail-title">
+            <p class="eyebrow">Template detail</p>
+            <h1>产品功能展示字幕包</h1>
+            <p>用于检查详情页标题、说明和元信息布局。</p>
+          </div>
+          <div class="meta-list">
+            <div class="meta-item"><span>上传时间</span>2026/4/30 16:20:00</div>
+            <div class="meta-item"><span>上传人</span>admin</div>
+            <div class="meta-item"><span>导入方式</span>手动上传</div>
+            <div class="meta-item"><span>来源路径</span>手动上传模板</div>
+          </div>
+        </div>
+        <aside class="panel detail-side">
+          <div>
+            <p class="eyebrow">Tags</p>
+            <h2>标签与下载</h2>
+          </div>
+          <div class="tag-stack">
+            <section><div class="chip-group-label">场景</div><div class="tag-row"><span class="tag">发布会</span><span class="tag">课程</span></div></section>
+          </div>
+          <div class="detail-actions">
+            <a class="button-link" href="#">下载模板包</a>
+            <a class="button-link secondary" href="#">返回列表</a>
+          </div>
+        </aside>
+      </section>
+    </main>
+  </body>
+</html>

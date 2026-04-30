@@ -75,7 +75,7 @@ export function TemplateCard({ item }: Props) {
           loop
           playsInline
           preload="metadata"
-          style={{ opacity: isPreviewing ? 1 : 0 }}
+          className={isPreviewing ? "preview-video visible" : "preview-video"}
         />
       ) : (
         <span className="locked-badge">登录后预览</span>
@@ -87,7 +87,10 @@ export function TemplateCard({ item }: Props) {
     <>
       {media}
       <div className="card-body">
-        <h2>{item.name}</h2>
+        <div>
+          <h2>{item.name}</h2>
+          {item.description ? <p>{item.description}</p> : null}
+        </div>
         <div className="card-meta">
           <span>{item.uploadedBy}</span>
           <span>{new Date(item.createdAt).toLocaleDateString("zh-CN")}</span>

@@ -56,8 +56,8 @@ export function TagCreator({ tagGroups, onCreated }: Props) {
   return (
     <section className="group-block">
       <h4>新增分组标签</h4>
-      <p className="status">这里创建的是长期复用标签。一次性补充标签仍使用下面的自定义标签输入框。</p>
-      <form className="form" onSubmit={submit}>
+      <p className="status">管理员可在当前流程中补充标签，创建后会自动加入可选项。</p>
+      <form className="form compact-form" onSubmit={submit}>
         <div className="field">
           <label htmlFor="tagCreatorName">标签名称</label>
           <input
@@ -78,7 +78,7 @@ export function TagCreator({ tagGroups, onCreated }: Props) {
             onChange={(event) => setGroupName(event.target.value)}
             required
           >
-            <option value="">请选择分类</option>
+            <option value="">选择分类</option>
             {groupedOptions.map((group) => (
               <option key={group.groupName} value={group.groupName}>
                 {group.groupName}
@@ -90,7 +90,7 @@ export function TagCreator({ tagGroups, onCreated }: Props) {
         {status ? <div className={`status${isError ? " error" : " success"}`}>{status}</div> : null}
 
         <button className="button secondary" type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "创建中..." : "创建分组标签"}
+          {isSubmitting ? "正在创建..." : "创建标签"}
         </button>
       </form>
     </section>

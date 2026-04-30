@@ -4,10 +4,10 @@ export default function NotFound() {
   return (
     <main className="site-page">
       <div className="empty">
-        <h2 style={{ marginTop: 0 }}>模板不存在</h2>
-        <p>你访问的模板可能已被删除，或者链接地址不正确。</p>
+        <h2>模板不存在</h2>
+        <p>这个模板可能已被删除，或你没有访问权限。</p>
         <Link href="/" className="button-link secondary">
-          返回模板库
+          返回素材库
         </Link>
       </div>
     </main>

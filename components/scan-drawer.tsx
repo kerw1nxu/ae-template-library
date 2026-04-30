@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { Icon } from "@/components/icons";
 import type { ScanResult } from "@/lib/types";
 
 type Props = {
@@ -49,8 +50,9 @@ export function ScanDrawer({ open, onClose, onScanned }: Props) {
       <aside className="drawer" onClick={(event) => event.stopPropagation()}>
         <div className="drawer-header">
           <div>
-            <h2>扫描现有模板目录</h2>
-            <p>扫描 `SCAN_ROOT` 下的相对目录。每个模板目录里放 1 个图片、1 个视频、1 个模板文件即可，文件名不用固定；如果同类文件有多个，只取第一个。</p>
+            <p className="eyebrow">Scan</p>
+            <h2>扫描导入</h2>
+            <p>从 SCAN_ROOT 下读取素材目录。每个模板目录会自动匹配首个图片、首个视频和首个模板文件。</p>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="关闭">
             ×
@@ -74,14 +76,17 @@ export function ScanDrawer({ open, onClose, onScanned }: Props) {
           {result ? (
             <div className="group-block">
               <h4>扫描结果</h4>
-              <div className="status">
-                已扫描 {result.scanned} 个目录，新增 {result.created} 个，更新 {result.updated} 个，跳过 {result.skipped} 个。
+              <div className="scan-summary">
+                <span>扫描 {result.scanned}</span>
+                <span>新增 {result.created}</span>
+                <span>更新 {result.updated}</span>
+                <span>跳过 {result.skipped}</span>
               </div>
               {result.issues.length > 0 ? (
-                <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+                <div className="issue-list">
                   {result.issues.slice(0, 8).map((issue) => (
                     <div className="status error" key={`${issue.relativePath}-${issue.reason}`}>
-                      {issue.relativePath}：{issue.reason}
+                      {issue.relativePath}: {issue.reason}
                     </div>
                   ))}
                 </div>
@@ -89,9 +94,10 @@ export function ScanDrawer({ open, onClose, onScanned }: Props) {
             </div>
           ) : null}
 
-          <div style={{ display: "flex", gap: 12 }}>
+          <div className="form-actions">
             <button className="button" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "扫描中..." : "开始扫描"}
+              <Icon name="scan" />
+              {isSubmitting ? "正在扫描..." : "开始扫描"}
             </button>
             <button className="button secondary" type="button" onClick={onClose}>
               关闭

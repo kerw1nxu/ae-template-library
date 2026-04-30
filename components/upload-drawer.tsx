@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Icon } from "@/components/icons";
 import { TagCreator } from "@/components/tag-creator";
 import { CUSTOM_TAG_GROUP } from "@/lib/constants";
 import { mergeTagIntoGroups } from "@/lib/tag-groups";
@@ -106,8 +107,9 @@ export function UploadDrawer({ open, tagGroups, canManageTags, onClose, onUpload
       <aside className="drawer" onClick={(event) => event.stopPropagation()}>
         <div className="drawer-header">
           <div>
+            <p className="eyebrow">Upload</p>
             <h2>上传模板</h2>
-            <p>上传模板文件、封面和预览视频，并为模板配置可长期复用的分组标签或临时自定义标签。</p>
+            <p>补充封面图、预览视频和模板包。标签会用于首页筛选和详情页展示。</p>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="关闭">
             ×
@@ -125,7 +127,7 @@ export function UploadDrawer({ open, tagGroups, canManageTags, onClose, onUpload
             <textarea
               id="description"
               name="description"
-              placeholder="可填写适用场景、画面风格、使用说明等信息。"
+              placeholder="填写适用场景、画面风格或使用说明。"
             />
           </div>
 
@@ -164,26 +166,28 @@ export function UploadDrawer({ open, tagGroups, canManageTags, onClose, onUpload
             />
           </div>
 
-          <div className="field">
-            <label htmlFor="thumbnail">封面图</label>
-            <input id="thumbnail" name="thumbnail" type="file" accept="image/*" required />
-            <span className="file-note">建议上传 16:9 或 16:10 的封面图。</span>
-          </div>
+          <div className="file-grid">
+            <div className="field">
+              <label htmlFor="thumbnail">封面图</label>
+              <input id="thumbnail" name="thumbnail" type="file" accept="image/*" required />
+              <span className="file-note">建议使用 16:9 或 16:10 的清晰预览图。</span>
+            </div>
 
-          <div className="field">
-            <label htmlFor="previewVideo">预览视频</label>
-            <input id="previewVideo" name="previewVideo" type="file" accept="video/*" required />
-          </div>
+            <div className="field">
+              <label htmlFor="previewVideo">预览视频</label>
+              <input id="previewVideo" name="previewVideo" type="file" accept="video/*" required />
+            </div>
 
-          <div className="field">
-            <label htmlFor="templateFile">模板文件</label>
-            <input
-              id="templateFile"
-              name="templateFile"
-              type="file"
-              accept=".zip,.aep,.aet,.rar,.7z,application/zip,application/octet-stream"
-              required
-            />
+            <div className="field">
+              <label htmlFor="templateFile">模板文件</label>
+              <input
+                id="templateFile"
+                name="templateFile"
+                type="file"
+                accept=".zip,.aep,.aet,.rar,.7z,application/zip,application/octet-stream"
+                required
+              />
+            </div>
           </div>
 
           {submitState.message ? (
@@ -192,9 +196,10 @@ export function UploadDrawer({ open, tagGroups, canManageTags, onClose, onUpload
             </div>
           ) : null}
 
-          <div style={{ display: "flex", gap: 12 }}>
+          <div className="form-actions">
             <button className="button" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "上传中..." : "上传模板"}
+              <Icon name="upload" />
+              {isSubmitting ? "正在上传..." : "上传模板"}
             </button>
             <button className="button secondary" type="button" onClick={onClose}>
               取消

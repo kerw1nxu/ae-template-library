@@ -37,8 +37,9 @@ export function TemplateDeleteButton({ templateId }: Props) {
 
   return (
     <div className="danger-block">
+      <p>删除后普通用户将不再看到这个模板。</p>
       <button className="danger-button" type="button" disabled={isDeleting} onClick={deleteTemplate}>
-        {isDeleting ? "删除中..." : "删除模板"}
+        {isDeleting ? "正在删除..." : "删除模板"}
       </button>
       {error ? <p className="status error">{error}</p> : null}
     </div>

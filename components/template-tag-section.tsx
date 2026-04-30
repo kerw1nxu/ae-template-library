@@ -15,24 +15,20 @@ export function TemplateTagSection({ template, tagGroups, canEdit }: Props) {
 
   return (
     <>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 18 }}>
-        <div className="chip-group-label" style={{ marginRight: 0 }}>
-          当前标签
-        </div>
+      <div className="detail-tag-head">
+        <div className="chip-group-label">已分配标签</div>
         {canEdit ? (
           <button type="button" className="button secondary" onClick={() => setOpen(true)}>
-            编辑
+            编辑标签
           </button>
         ) : null}
       </div>
 
       {template.groupedTags.length > 0 ? (
-        <div style={{ display: "grid", gap: 16, marginTop: 14 }}>
+        <div className="tag-stack">
           {template.groupedTags.map((group) => (
             <section key={group.groupName}>
-              <div className="chip-group-label" style={{ marginBottom: 10 }}>
-                {group.groupName}
-              </div>
+              <div className="chip-group-label">{group.groupName}</div>
               <div className="tag-row">
                 {group.tags.map((tag) => (
                   <span className="tag" key={`${group.groupName}-${tag.id}`}>
@@ -44,9 +40,7 @@ export function TemplateTagSection({ template, tagGroups, canEdit }: Props) {
           ))}
         </div>
       ) : (
-        <div className="status" style={{ marginTop: 14 }}>
-          暂无标签。
-        </div>
+        <div className="status muted-state">暂无标签。</div>
       )}
 
       {canEdit ? (

@@ -161,18 +161,21 @@ export function AdminClient({ initialUsers, initialTagGroups }: Props) {
 
       <section className="admin-panel">
         <div className="panel-title">
-          <h2>成员账号</h2>
-          <p>只能由管理员创建账号，没有公开注册入口。</p>
+          <div>
+            <p className="eyebrow">Accounts</p>
+            <h2>账号管理</h2>
+          </div>
+          <p>创建账号、调整角色，或停用不再使用的账号。</p>
         </div>
 
-        <form className="inline-form" onSubmit={createUser}>
+        <form className="inline-form user-form" onSubmit={createUser}>
           <input name="username" type="text" placeholder="账号" required />
           <input name="password" type="password" placeholder="初始密码，至少 8 位" required />
           <select name="role" defaultValue="user">
             <option value="user">user</option>
             <option value="admin">admin</option>
           </select>
-          <button className="primary-button" type="submit">新增账号</button>
+          <button className="primary-button" type="submit">创建账号</button>
         </form>
 
         <div className="admin-table">
@@ -207,7 +210,7 @@ export function AdminClient({ initialUsers, initialTagGroups }: Props) {
                 className={user.disabledAt ? "ghost-button" : "danger-button"}
                 onClick={() => void patchUser(user.id, { disabled: !user.disabledAt })}
               >
-                {user.disabledAt ? "启用" : "停用"}
+                {user.disabledAt ? "恢复" : "停用"}
               </button>
             </div>
           ))}
@@ -216,16 +219,19 @@ export function AdminClient({ initialUsers, initialTagGroups }: Props) {
 
       <section className="admin-panel">
         <div className="panel-title">
-          <h2>分类与标签</h2>
-          <p>首页分类栏会使用启用状态的分类和标签。</p>
+          <div>
+            <p className="eyebrow">Taxonomy</p>
+            <h2>分类与标签</h2>
+          </div>
+          <p>维护首页筛选、上传选择和详情页展示所使用的标签体系。</p>
         </div>
 
         <form className="inline-form" onSubmit={createGroup}>
           <input name="name" type="text" placeholder="新分类名称" required />
-          <button className="primary-button" type="submit">新增分类</button>
+          <button className="primary-button" type="submit">创建分类</button>
         </form>
 
-        <form className="inline-form" onSubmit={createTag}>
+        <form className="inline-form tag-form" onSubmit={createTag}>
           <input name="name" type="text" placeholder="新标签名称" required />
           <select name="groupName" required defaultValue="">
             <option value="" disabled>选择分类</option>
@@ -235,34 +241,38 @@ export function AdminClient({ initialUsers, initialTagGroups }: Props) {
               </option>
             ))}
           </select>
-          <button className="primary-button" type="submit">新增标签</button>
+          <button className="primary-button" type="submit">创建标签</button>
         </form>
 
         <div className="group-admin-list">
           {tagGroups.map((group) => (
             <section className="group-admin" key={group.groupName}>
               <div className="group-admin-head">
-                <strong>{group.groupName}</strong>
-                <span>{group.isEnabled ? "启用" : "停用"}</span>
-                <button
-                  className="ghost-button"
-                  type="button"
-                  onClick={() => {
-                    const name = window.prompt("输入新的分类名称", group.groupName);
-                    if (name && name !== group.groupName) {
-                      void patchGroup(group.groupName, { name });
-                    }
-                  }}
-                >
-                  改名
-                </button>
-                <button
-                  className="ghost-button"
-                  type="button"
-                  onClick={() => void patchGroup(group.groupName, { isEnabled: !group.isEnabled })}
-                >
-                  {group.isEnabled ? "停用" : "启用"}
-                </button>
+                <div>
+                  <strong>{group.groupName}</strong>
+                  <span>{group.isEnabled ? "已启用" : "已停用"}</span>
+                </div>
+                <div className="row-actions">
+                  <button
+                    className="ghost-button"
+                    type="button"
+                    onClick={() => {
+                      const name = window.prompt("输入新的分类名称", group.groupName);
+                      if (name && name !== group.groupName) {
+                        void patchGroup(group.groupName, { name });
+                      }
+                    }}
+                  >
+                    重命名
+                  </button>
+                  <button
+                    className="ghost-button"
+                    type="button"
+                    onClick={() => void patchGroup(group.groupName, { isEnabled: !group.isEnabled })}
+                  >
+                    {group.isEnabled ? "停用" : "启用"}
+                  </button>
+                </div>
               </div>
               <div className="admin-tags">
                 {group.tags.map((tag) => (

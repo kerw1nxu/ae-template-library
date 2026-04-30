@@ -27,12 +27,15 @@ export default async function AdminPage() {
         <div>
           <Link href="/" className="brand">
             <span className="brand-mark" aria-hidden="true" />
-            <span className="brand-title">AE 模板库</span>
+            <span className="brand-title">AE 模板素材库</span>
           </Link>
-          <h1>后台管理</h1>
+          <div>
+            <p className="eyebrow">Admin console</p>
+            <h1>后台管理</h1>
+          </div>
         </div>
         <Link className="ghost-button" href="/">
-          返回首页
+          返回素材库
         </Link>
       </header>
       <AdminClient initialUsers={users} initialTagGroups={tagGroups} />
