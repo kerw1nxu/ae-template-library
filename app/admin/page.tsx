@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AdminClient } from "@/components/admin-client";
 import { getCurrentUser } from "@/lib/auth";
-import { getTagGroups } from "@/lib/tags";
 import { listUsers } from "@/lib/users";
 
 export const dynamic = "force-dynamic";
@@ -16,10 +15,7 @@ export default async function AdminPage() {
     redirect("/");
   }
 
-  const [users, tagGroups] = await Promise.all([
-    listUsers(),
-    getTagGroups({ includeDisabled: true }),
-  ]);
+  const users = await listUsers();
 
   return (
     <main className="site-page admin-page">
@@ -35,7 +31,7 @@ export default async function AdminPage() {
           返回首页
         </Link>
       </header>
-      <AdminClient initialUsers={users} initialTagGroups={tagGroups} />
+      <AdminClient initialUsers={users} />
     </main>
   );
 }

@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { TemplateDeleteButton } from "@/components/template-delete-button";
-import { TemplateTagSection } from "@/components/template-tag-section";
 import { getCurrentUser } from "@/lib/auth";
 import { getMediaUrl } from "@/lib/media-url";
-import { getTagGroups } from "@/lib/tags";
 import { getTemplateById } from "@/lib/templates";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +18,7 @@ export default async function TemplateDetailPage({
     redirect(`/login?next=${encodeURIComponent(`/template/${id}`)}` as never);
   }
 
-  const [template, tagGroups] = await Promise.all([getTemplateById(id, currentUser), getTagGroups()]);
+  const template = await getTemplateById(id, currentUser);
 
   if (!template) {
     notFound();
@@ -72,13 +70,24 @@ export default async function TemplateDetailPage({
         </section>
 
         <aside className="panel detail-side">
-          <h3>标签与操作</h3>
+          <h3>模板操作</h3>
 
-          <TemplateTagSection
-            template={template}
-            tagGroups={tagGroups}
-            canEdit={currentUser.role === "admin"}
-          />
+          <section style={{ marginTop: 18 }}>
+            <div className="chip-group-label" style={{ marginBottom: 10 }}>
+              Tags
+            </div>
+            {template.searchKeywords.length > 0 ? (
+              <div className="tag-row">
+                {template.searchKeywords.map((keyword) => (
+                  <span className="tag" key={`${template.id}-${keyword}`}>
+                    {keyword}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div className="status">暂无 tags。</div>
+            )}
+          </section>
 
           <div className="detail-actions">
             <a className="button-link" href={`/api/templates/${template.id}/download`}>

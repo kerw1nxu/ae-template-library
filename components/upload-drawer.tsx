@@ -1,18 +1,11 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { TagCreator } from "@/components/tag-creator";
-import { CUSTOM_TAG_GROUP } from "@/lib/constants";
-import { mergeTagIntoGroups } from "@/lib/tag-groups";
-import type { TagGroup, TagRecord } from "@/lib/types";
+import { FormEvent, useState } from "react";
 
 type Props = {
   open: boolean;
-  tagGroups: TagGroup[];
-  canManageTags: boolean;
   onClose: () => void;
   onUploaded: () => Promise<void> | void;
-  onTagsChanged?: () => Promise<void> | void;
 };
 
 type SubmitState =
@@ -20,57 +13,19 @@ type SubmitState =
   | { kind: "error"; message: string }
   | { kind: "success"; message: string };
 
-export function UploadDrawer({ open, tagGroups, canManageTags, onClose, onUploaded, onTagsChanged }: Props) {
-  const [availableTagGroups, setAvailableTagGroups] = useState(tagGroups);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [customTags, setCustomTags] = useState("");
+export function UploadDrawer({ open, onClose, onUploaded }: Props) {
   const [submitState, setSubmitState] = useState<SubmitState>({ kind: "idle", message: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const systemGroups = useMemo(
-    () =>
-      availableTagGroups.filter(
-        (group) => group.groupName !== CUSTOM_TAG_GROUP && group.isEnabled,
-      ),
-    [availableTagGroups],
-  );
-
-  useEffect(() => {
-    setAvailableTagGroups(tagGroups);
-  }, [tagGroups]);
 
   if (!open) {
     return null;
   }
-
-  const toggleTag = (tagName: string) => {
-    setSelectedTags((current) =>
-      current.includes(tagName)
-        ? current.filter((item) => item !== tagName)
-        : [...current, tagName],
-    );
-  };
-
-  const reset = () => {
-    setSelectedTags([]);
-    setCustomTags("");
-    setSubmitState({ kind: "idle", message: "" });
-    setAvailableTagGroups(tagGroups);
-  };
-
-  const handleTagCreated = async (tag: TagRecord) => {
-    setAvailableTagGroups((current) => mergeTagIntoGroups(current, tag));
-    setSelectedTags((current) => (current.includes(tag.name) ? current : [...current, tag.name]));
-    await onTagsChanged?.();
-  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const form = event.currentTarget;
     const formData = new FormData(form);
-    formData.set("systemTags", JSON.stringify(selectedTags));
-    formData.set("customTags", customTags);
 
     setIsSubmitting(true);
     setSubmitState({ kind: "idle", message: "" });
@@ -86,9 +41,8 @@ export function UploadDrawer({ open, tagGroups, canManageTags, onClose, onUpload
         throw new Error(payload.error ?? "上传失败。");
       }
 
-      setSubmitState({ kind: "success", message: "模板已上传。" });
+      setSubmitState({ kind: "success", message: "模板已自动导入。" });
       form.reset();
-      reset();
       await onUploaded();
       onClose();
     } catch (error) {
@@ -106,8 +60,8 @@ export function UploadDrawer({ open, tagGroups, canManageTags, onClose, onUpload
       <aside className="drawer" onClick={(event) => event.stopPropagation()}>
         <div className="drawer-header">
           <div>
-            <h2>上传模板</h2>
-            <p>上传模板文件、封面和预览视频，并为模板配置可长期复用的分组标签或临时自定义标签。</p>
+            <h2>自动导入模板</h2>
+            <p>上传带 VJshi 编号的模板压缩包，后台会自动抓取标题、封面、预览视频和搜索关键词。</p>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="关闭">
             ×
@@ -116,74 +70,15 @@ export function UploadDrawer({ open, tagGroups, canManageTags, onClose, onUpload
 
         <form className="form" onSubmit={handleSubmit}>
           <div className="field">
-            <label htmlFor="name">模板名称</label>
-            <input id="name" name="name" type="text" required placeholder="例如：2026 企业年会开场" />
-          </div>
-
-          <div className="field">
-            <label htmlFor="description">模板描述</label>
-            <textarea
-              id="description"
-              name="description"
-              placeholder="可填写适用场景、画面风格、使用说明等信息。"
-            />
-          </div>
-
-          {systemGroups.map((group) => (
-            <div className="group-block" key={group.groupName}>
-              <h4>{group.groupName}</h4>
-              <div className="chip-picker">
-                {group.tags.filter((tag) => tag.isEnabled).map((tag) => {
-                  const active = selectedTags.includes(tag.name);
-                  return (
-                    <button
-                      type="button"
-                      key={`${group.groupName}-${tag.id}`}
-                      className={`picker-btn${active ? " active" : ""}`}
-                      onClick={() => toggleTag(tag.name)}
-                    >
-                      {tag.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-
-          {canManageTags ? <TagCreator tagGroups={availableTagGroups} onCreated={handleTagCreated} /> : null}
-
-          <div className="field">
-            <label htmlFor="customTags">自定义标签</label>
-            <input
-              id="customTags"
-              name="customTagsInput"
-              type="text"
-              value={customTags}
-              onChange={(event) => setCustomTags(event.target.value)}
-              placeholder="多个标签用逗号分隔"
-            />
-          </div>
-
-          <div className="field">
-            <label htmlFor="thumbnail">封面图</label>
-            <input id="thumbnail" name="thumbnail" type="file" accept="image/*" required />
-            <span className="file-note">建议上传 16:9 或 16:10 的封面图。</span>
-          </div>
-
-          <div className="field">
-            <label htmlFor="previewVideo">预览视频</label>
-            <input id="previewVideo" name="previewVideo" type="file" accept="video/*" required />
-          </div>
-
-          <div className="field">
-            <label htmlFor="templateFile">模板文件</label>
+            <label htmlFor="templateFile">模板压缩包</label>
             <input
               id="templateFile"
               name="templateFile"
               type="file"
-              accept=".zip,.aep,.aet,.rar,.7z,application/zip,application/octet-stream"
+              accept=".zip,.rar,.7z,.aep,.aet,application/zip,application/octet-stream"
               required
             />
+            <span className="file-note">文件名需包含 VJshi 编号，例如：光厂_9958739_片头.zip。</span>
           </div>
 
           {submitState.message ? (
@@ -194,7 +89,7 @@ export function UploadDrawer({ open, tagGroups, canManageTags, onClose, onUpload
 
           <div style={{ display: "flex", gap: 12 }}>
             <button className="button" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "上传中..." : "上传模板"}
+              {isSubmitting ? "自动导入中..." : "上传并自动导入"}
             </button>
             <button className="button secondary" type="button" onClick={onClose}>
               取消

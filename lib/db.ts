@@ -106,6 +106,13 @@ function createV1Schema(db: Database) {
       FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS template_search_keywords (
+      template_id TEXT NOT NULL,
+      keyword TEXT NOT NULL,
+      PRIMARY KEY (template_id, keyword),
+      FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS download_events (
       id TEXT PRIMARY KEY,
       template_id TEXT NOT NULL,
@@ -125,6 +132,7 @@ function createV1Schema(db: Database) {
     CREATE INDEX IF NOT EXISTS idx_templates_deleted_at ON templates(deleted_at);
     CREATE INDEX IF NOT EXISTS idx_template_tags_template_id ON template_tags(template_id);
     CREATE INDEX IF NOT EXISTS idx_template_tags_tag_id ON template_tags(tag_id);
+    CREATE INDEX IF NOT EXISTS idx_template_search_keywords_keyword ON template_search_keywords(keyword);
     CREATE INDEX IF NOT EXISTS idx_download_events_template_id ON download_events(template_id);
     CREATE INDEX IF NOT EXISTS idx_download_events_user_id ON download_events(user_id);
   `);

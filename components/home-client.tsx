@@ -1,33 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
 import { ScanDrawer } from "@/components/scan-drawer";
 import { TemplateCard } from "@/components/template-card";
 import { UploadDrawer } from "@/components/upload-drawer";
-import type { CurrentUser, TagGroup, TemplateListItem } from "@/lib/types";
+import type { CurrentUser, TemplateListItem } from "@/lib/types";
 
 type Props = {
   initialTemplates: TemplateListItem[];
-  initialTagGroups: TagGroup[];
   currentUser: CurrentUser | null;
 };
 
-export function HomeClient({ initialTemplates, initialTagGroups, currentUser }: Props) {
+export function HomeClient({ initialTemplates, currentUser }: Props) {
   const [query, setQuery] = useState("");
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [templates, setTemplates] = useState(initialTemplates);
-  const [tagGroups, setTagGroups] = useState(initialTagGroups);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isScanOpen, setIsScanOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const deferredQuery = useDeferredValue(query);
-
-  const visibleGroups = useMemo(
-    () => tagGroups.filter((group) => group.isEnabled && group.tags.some((tag) => tag.isEnabled)),
-    [tagGroups],
-  );
 
   const loadTemplates = async () => {
     setIsLoading(true);
@@ -37,9 +29,6 @@ export function HomeClient({ initialTemplates, initialTagGroups, currentUser }: 
       const params = new URLSearchParams();
       if (deferredQuery.trim()) {
         params.set("query", deferredQuery.trim());
-      }
-      if (selectedTags.length > 0) {
-        params.set("tags", selectedTags.join(","));
       }
 
       const response = await fetch(`/api/templates?${params.toString()}`, { cache: "no-store" });
@@ -56,34 +45,10 @@ export function HomeClient({ initialTemplates, initialTagGroups, currentUser }: 
     }
   };
 
-  const loadTags = async () => {
-    try {
-      const response = await fetch("/api/tags", { cache: "no-store" });
-      const payload = (await response.json()) as { items?: TagGroup[] };
-      if (response.ok && payload.items) {
-        setTagGroups(payload.items);
-      }
-    } catch {
-      // keep current tags
-    }
-  };
-
   useEffect(() => {
     void loadTemplates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deferredQuery, selectedTags.join(",")]);
-
-  useEffect(() => {
-    void loadTags();
-  }, []);
-
-  const toggleTag = (tagName: string) => {
-    setSelectedTags((current) =>
-      current.includes(tagName)
-        ? current.filter((item) => item !== tagName)
-        : [...current, tagName],
-    );
-  };
+  }, [deferredQuery]);
 
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -100,7 +65,6 @@ export function HomeClient({ initialTemplates, initialTagGroups, currentUser }: 
 
         <nav className="topnav" aria-label="主导航">
           <a href="#templates">找模板</a>
-          <a href="#categories">分类筛选</a>
           {currentUser ? <button type="button" onClick={() => setIsUploadOpen(true)}>上传</button> : null}
           {currentUser?.role === "admin" ? <Link href="/admin">后台管理</Link> : null}
         </nav>
@@ -129,7 +93,7 @@ export function HomeClient({ initialTemplates, initialTagGroups, currentUser }: 
               type="text"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="输入关键词、模板名称或标签"
+              placeholder="输入关键词或模板名称"
             />
           </label>
           <button className="search-button" type="button" onClick={() => void loadTemplates()}>
@@ -140,49 +104,6 @@ export function HomeClient({ initialTemplates, initialTagGroups, currentUser }: 
           <p className="public-note">访客可浏览模板列表；登录后可播放预览、查看详情和下载。</p>
         ) : null}
       </section>
-
-      <section className="category-strip" id="categories" aria-label="分类筛选">
-        {visibleGroups.map((group) => (
-          <div className="category-menu" key={group.groupName}>
-            <button type="button" className="category-trigger">
-              {group.groupName}
-              <span aria-hidden="true">⌄</span>
-            </button>
-            <div className="category-dropdown">
-              {group.tags
-                .filter((tag) => tag.isEnabled)
-                .map((tag) => {
-                  const active = selectedTags.includes(tag.name);
-                  return (
-                    <button
-                      type="button"
-                      key={`${group.groupName}-${tag.id}`}
-                      className={`filter-chip${active ? " active" : ""}`}
-                      onClick={() => toggleTag(tag.name)}
-                    >
-                      {tag.name}
-                    </button>
-                  );
-                })}
-            </div>
-          </div>
-        ))}
-        {selectedTags.length > 0 ? (
-          <button className="reset-filter" type="button" onClick={() => setSelectedTags([])}>
-            重置筛选
-          </button>
-        ) : null}
-      </section>
-
-      {selectedTags.length > 0 ? (
-        <div className="selected-row">
-          {selectedTags.map((tag) => (
-            <button type="button" key={tag} className="selected-tag" onClick={() => toggleTag(tag)}>
-              {tag} ×
-            </button>
-          ))}
-        </div>
-      ) : null}
 
       <section className="template-section" id="templates">
         <div className="section-head">
@@ -223,21 +144,14 @@ export function HomeClient({ initialTemplates, initialTagGroups, currentUser }: 
 
       <UploadDrawer
         open={isUploadOpen}
-        tagGroups={tagGroups}
-        canManageTags={currentUser?.role === "admin"}
         onClose={() => setIsUploadOpen(false)}
-        onTagsChanged={loadTags}
-        onUploaded={async () => {
-          await Promise.all([loadTemplates(), loadTags()]);
-        }}
+        onUploaded={loadTemplates}
       />
 
       <ScanDrawer
         open={isScanOpen}
         onClose={() => setIsScanOpen(false)}
-        onScanned={async () => {
-          await Promise.all([loadTemplates(), loadTags()]);
-        }}
+        onScanned={loadTemplates}
       />
     </main>
   );

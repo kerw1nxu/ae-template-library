@@ -8,10 +8,14 @@ import {
   absoluteFileToStorageRelative,
   getScanDirectories,
   locateTemplateAssets,
-  saveUploadedFiles,
+  resolveStoragePath,
+  saveAutoImportedTemplateFiles,
 } from "@/lib/storage";
 import { getTagGroups, resolveTagIds } from "@/lib/tags";
 import type { CurrentUser, ScanIssue, ScanResult, TagRecord, TemplateDetail, TemplateListItem } from "@/lib/types";
+import { fetchVjshiTemplateAssets } from "@/lib/vjshi";
+
+const KEYWORD_FILE_MAX_BYTES = 1024 * 1024;
 
 type SearchOptions = {
   query?: string;
@@ -41,6 +45,31 @@ function parseTagsCsv(value: string | null | undefined) {
         .map((entry) => entry.trim())
         .filter(Boolean)
     : [];
+}
+
+function parseSearchKeywords(rawValue: string) {
+  return Array.from(
+    new Set(
+      rawValue
+        .split(/[\s,，]+/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
+async function readScanSearchKeywords(keywordPath: string) {
+  const stat = await fs.stat(keywordPath);
+  if (stat.size > KEYWORD_FILE_MAX_BYTES) {
+    throw new Error("TXT 关键词文件过大");
+  }
+
+  const keywords = parseSearchKeywords(await fs.readFile(keywordPath, "utf8"));
+  if (keywords.length === 0) {
+    throw new Error("TXT 关键词文件不能为空");
+  }
+
+  return keywords;
 }
 
 function listCapabilities(viewer?: CurrentUser | null) {
@@ -129,9 +158,15 @@ export async function searchTemplates(options: SearchOptions = {}, viewer?: Curr
             AND search_tags.is_enabled = 1
             AND search_tags.name LIKE ?
         )
+        OR EXISTS (
+          SELECT 1
+          FROM template_search_keywords search_keywords
+          WHERE search_keywords.template_id = templates.id
+            AND search_keywords.keyword LIKE ?
+        )
       )
     `);
-    params.push(`%${query}%`, `%${query}%`);
+    params.push(`%${query}%`, `%${query}%`, `%${query}%`);
   }
 
   if (tags.length > 0) {
@@ -179,7 +214,8 @@ export async function searchTemplates(options: SearchOptions = {}, viewer?: Curr
 }
 
 export async function getTemplateById(id: string, viewer?: CurrentUser | null): Promise<TemplateDetail | null> {
-  const row = await queryFirst<TemplateRow>(
+  const [row, keywordRows] = await Promise.all([
+    queryFirst<TemplateRow>(
     `
       SELECT
         templates.id,
@@ -203,7 +239,17 @@ export async function getTemplateById(id: string, viewer?: CurrentUser | null): 
       GROUP BY templates.id
     `,
     [id],
-  );
+    ),
+    queryAll<{ keyword: string }>(
+      `
+        SELECT keyword
+        FROM template_search_keywords
+        WHERE template_id = ?
+        ORDER BY keyword COLLATE NOCASE ASC
+      `,
+      [id],
+    ),
+  ]);
 
   if (!row) {
     return null;
@@ -213,6 +259,7 @@ export async function getTemplateById(id: string, viewer?: CurrentUser | null): 
     ...rowToListItem(row, viewer),
     previewVideoPath: row.preview_video_path,
     templateFilePath: row.template_file_path,
+    searchKeywords: keywordRows.map((item) => String(item.keyword)),
     groupedTags: await buildGroupedTags(id),
     sourcePathKey: row.source_path_key,
     importMode: row.import_mode,
@@ -269,6 +316,7 @@ async function insertTemplateWithTagIds(
     uploadedBy: string;
     sourcePathKey?: string | null;
     importMode?: string | null;
+    searchKeywords: string[];
   },
   tagIds: number[],
 ) {
@@ -296,26 +344,43 @@ async function insertTemplateWithTagIds(
   for (const tagId of tagIds) {
     db.run("INSERT INTO template_tags (template_id, tag_id) VALUES (?, ?)", [input.id, tagId]);
   }
+
+  replaceTemplateSearchKeywords(db, input.id, input.searchKeywords);
+}
+
+function replaceTemplateSearchKeywords(db: Database, templateId: string, searchKeywords: string[]) {
+  db.run("DELETE FROM template_search_keywords WHERE template_id = ?", [templateId]);
+  for (const keyword of searchKeywords) {
+    db.run("INSERT INTO template_search_keywords (template_id, keyword) VALUES (?, ?)", [templateId, keyword]);
+  }
 }
 
 export async function createTemplateEntry(input: {
-  name: string;
-  description: string;
   uploadedBy: string;
-  systemTags: string[];
-  customTags: string[];
-  thumbnail: File;
-  previewVideo: File;
   templateFile: File;
 }) {
+  const vjshiId = input.templateFile.name.match(/\d{5,}/)?.[0];
+  if (!vjshiId) {
+    throw new Error("模板压缩包文件名中没有找到 VJshi 编号。");
+  }
+
+  const existing = await queryFirst<{ id: string }>(
+    "SELECT id FROM templates WHERE source_path_key = ? AND deleted_at IS NULL",
+    [`vjshi:${vjshiId}`],
+  );
+  if (existing) {
+    throw new Error("该 VJshi 编号已入库。");
+  }
+
   const id = randomUUID();
   const createdAt = new Date().toISOString();
-  const tagIds = await resolveTagIds([...input.systemTags, ...input.customTags]);
-  const stored = await saveUploadedFiles({
+  const vjshiAssets = await fetchVjshiTemplateAssets(vjshiId);
+  const stored = await saveAutoImportedTemplateFiles({
     templateId: id,
-    thumbnail: input.thumbnail,
-    previewVideo: input.previewVideo,
     templateFile: input.templateFile,
+    thumbnail: vjshiAssets.thumbnail,
+    previewVideo: vjshiAssets.previewVideo,
+    keywordsText: vjshiAssets.keywords.join("\n"),
   });
 
   await transaction((db) =>
@@ -323,16 +388,18 @@ export async function createTemplateEntry(input: {
       db,
       {
         id,
-        name: input.name.trim(),
-        description: input.description.trim(),
+        name: vjshiAssets.title,
+        description: `VJshi 编号：${vjshiAssets.vjshiId}`,
         thumbnailPath: stored.thumbnailRelative,
         previewVideoPath: stored.previewRelative,
         templateFilePath: stored.sourceRelative,
         createdAt,
         uploadedBy: input.uploadedBy,
+        sourcePathKey: `vjshi:${vjshiId}`,
         importMode: UPLOAD_IMPORT_MODE,
+        searchKeywords: vjshiAssets.keywords,
       },
-      tagIds,
+      [],
     ),
   );
 
@@ -360,19 +427,48 @@ export async function updateTemplateTags(templateId: string, tagNames: string[])
 }
 
 export async function softDeleteTemplate(templateId: string, adminId: string) {
-  const template = await queryFirst<{ id: string }>(
-    "SELECT id FROM templates WHERE id = ? AND deleted_at IS NULL",
+  const template = await queryFirst<{ id: string; template_file_path: string }>(
+    "SELECT id, template_file_path FROM templates WHERE id = ? AND deleted_at IS NULL",
     [templateId],
   );
   if (!template) {
     throw new Error("模板不存在");
   }
 
-  await execute("UPDATE templates SET deleted_at = ?, deleted_by = ? WHERE id = ?", [
-    new Date().toISOString(),
-    adminId,
-    templateId,
-  ]);
+  await hardDeleteTemplateRecord(templateId);
+  await removeStoredTemplateDirectory(String(template.template_file_path));
+  void adminId;
+}
+
+async function hardDeleteTemplateRecord(templateId: string) {
+  await transaction((db) => {
+    db.run("DELETE FROM download_events WHERE template_id = ?", [templateId]);
+    db.run("DELETE FROM template_search_keywords WHERE template_id = ?", [templateId]);
+    db.run("DELETE FROM template_tags WHERE template_id = ?", [templateId]);
+    db.run("DELETE FROM templates WHERE id = ?", [templateId]);
+  });
+}
+
+async function removeStoredTemplateDirectory(templateFilePath: string) {
+  const match = templateFilePath.match(/^templates\/([^/]+)\//);
+  if (!match) {
+    return;
+  }
+
+  await fs.rm(resolveStoragePath(`templates/${match[1]}`), { recursive: true, force: true });
+}
+
+export async function purgeSoftDeletedTemplates() {
+  const rows = await queryAll<{ id: string; template_file_path: string }>(
+    "SELECT id, template_file_path FROM templates WHERE deleted_at IS NOT NULL",
+  );
+
+  for (const row of rows) {
+    await hardDeleteTemplateRecord(String(row.id));
+    await removeStoredTemplateDirectory(String(row.template_file_path));
+  }
+
+  return rows.length;
 }
 
 export async function recordDownloadEvent(input: {
@@ -394,8 +490,13 @@ function scanIssue(relativePath: string, templateName: string, reason: string): 
   return { relativePath, templateName, reason };
 }
 
-function isMissingScanAsset(assets: { thumbnailFile: string | null; previewFile: string | null; templateFile: string | null }) {
-  return !assets.thumbnailFile || !assets.previewFile || !assets.templateFile;
+function isMissingScanAsset(assets: {
+  thumbnailFile: string | null;
+  previewFile: string | null;
+  templateFile: string | null;
+  keywordFile: string | null;
+}) {
+  return !assets.thumbnailFile || !assets.previewFile || !assets.templateFile || !assets.keywordFile;
 }
 
 export async function scanTemplateLibrary(relativePath = "."): Promise<ScanResult> {
@@ -419,7 +520,16 @@ export async function scanTemplateLibrary(relativePath = "."): Promise<ScanResul
     const assets = await locateTemplateAssets(dir.absolutePath);
     if (isMissingScanAsset(assets)) {
       result.skipped += 1;
-      result.issues.push(scanIssue(dir.relativePath, templateName, "目录内缺少图片、视频或模板文件"));
+      result.issues.push(scanIssue(dir.relativePath, templateName, "目录内缺少图片、视频、模板文件或 TXT 关键词文件"));
+      continue;
+    }
+
+    let searchKeywords: string[];
+    try {
+      searchKeywords = await readScanSearchKeywords(path.join(dir.absolutePath, assets.keywordFile!));
+    } catch (error) {
+      result.skipped += 1;
+      result.issues.push(scanIssue(dir.relativePath, templateName, error instanceof Error ? error.message : "TXT 关键词文件无效"));
       continue;
     }
 
@@ -441,6 +551,7 @@ export async function scanTemplateLibrary(relativePath = "."): Promise<ScanResul
           `,
           [templateName, thumbnailPath, previewVideoPath, templateFilePath, SCAN_IMPORT_MODE, existing.id],
         );
+        replaceTemplateSearchKeywords(db, existing.id, searchKeywords);
       });
       result.updated += 1;
       continue;
@@ -461,6 +572,7 @@ export async function scanTemplateLibrary(relativePath = "."): Promise<ScanResul
           uploadedBy: "扫描导入",
           sourcePathKey: dir.relativePath,
           importMode: SCAN_IMPORT_MODE,
+          searchKeywords,
         },
         [],
       ),

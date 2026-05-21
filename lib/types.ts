@@ -46,6 +46,7 @@ export type TemplateListItem = {
 export type TemplateDetail = TemplateListItem & {
   previewVideoPath: string;
   templateFilePath: string;
+  searchKeywords: string[];
   groupedTags: TagGroup[];
   sourcePathKey: string | null;
   importMode: string | null;

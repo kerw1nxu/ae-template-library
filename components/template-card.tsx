@@ -92,13 +92,6 @@ export function TemplateCard({ item }: Props) {
           <span>{item.uploadedBy}</span>
           <span>{new Date(item.createdAt).toLocaleDateString("zh-CN")}</span>
         </div>
-        <div className="tag-row">
-          {item.tags.slice(0, 4).map((tag) => (
-            <span className="tag" key={`${item.id}-${tag}`}>
-              {tag}
-            </span>
-          ))}
-        </div>
       </div>
     </>
   );

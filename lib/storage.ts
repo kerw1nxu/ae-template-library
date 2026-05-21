@@ -24,6 +24,7 @@ const contentTypeByExtension: Record<string, string> = {
 const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
 const VIDEO_EXTENSIONS = [".mp4", ".mov", ".webm", ".m4v"];
 const TEMPLATE_EXTENSIONS = [".aep", ".aet", ".zip", ".rar", ".7z"];
+const KEYWORD_EXTENSIONS = [".txt"];
 
 function normalizeRelativePath(relativePath: string) {
   return relativePath.replace(/\\/g, "/").replace(/^\/+/, "");
@@ -147,11 +148,58 @@ export async function locateTemplateAssets(absoluteDir: string) {
     files.find((file) => VIDEO_EXTENSIONS.includes(path.extname(file).toLowerCase())) ?? null;
   const templateFile =
     files.find((file) => TEMPLATE_EXTENSIONS.includes(path.extname(file).toLowerCase())) ?? null;
+  const keywordFile =
+    files.find((file) => KEYWORD_EXTENSIONS.includes(path.extname(file).toLowerCase())) ?? null;
 
   return {
     thumbnailFile,
     previewFile,
     templateFile,
+    keywordFile,
+  };
+}
+
+export function assertTemplateFile(file: File) {
+  return assertAllowedFile(file, TEMPLATE_EXTENSIONS, "模板", 4 * 1024 * 1024 * 1024);
+}
+
+export async function saveAutoImportedTemplateFiles({
+  templateId,
+  templateFile,
+  thumbnail,
+  previewVideo,
+  keywordsText,
+}: {
+  templateId: string;
+  templateFile: File;
+  thumbnail: { extension: string; bytes: Buffer };
+  previewVideo: { extension: string; bytes: Buffer };
+  keywordsText: string;
+}) {
+  const targetDir = resolveStoragePath(path.posix.join("templates", templateId));
+  await fs.mkdir(targetDir, { recursive: true });
+
+  const sourceExt = assertTemplateFile(templateFile);
+  const thumbnailExt = thumbnail.extension || ".jpg";
+  const previewExt = previewVideo.extension || ".mp4";
+
+  const thumbnailRelative = path.posix.join("templates", templateId, `thumbnail${thumbnailExt}`);
+  const previewRelative = path.posix.join("templates", templateId, `preview${previewExt}`);
+  const sourceRelative = path.posix.join("templates", templateId, `source${sourceExt}`);
+  const keywordsRelative = path.posix.join("templates", templateId, "keywords.txt");
+
+  await Promise.all([
+    fs.writeFile(resolveStoragePath(thumbnailRelative), thumbnail.bytes),
+    fs.writeFile(resolveStoragePath(previewRelative), previewVideo.bytes),
+    fs.writeFile(resolveStoragePath(sourceRelative), Buffer.from(await templateFile.arrayBuffer())),
+    fs.writeFile(resolveStoragePath(keywordsRelative), keywordsText, "utf8"),
+  ]);
+
+  return {
+    thumbnailRelative,
+    previewRelative,
+    sourceRelative,
+    keywordsRelative,
   };
 }
 
