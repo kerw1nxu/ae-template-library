@@ -38,7 +38,7 @@ if (process.env.NODE_ENV !== "production") {
   await loadEnvFile(".env.development.local", true);
 }
 
-const databasePath = path.resolve(process.env.DATABASE_PATH ?? path.join(process.cwd(), "data", "dev-db.sqlite"));
+const databasePath = path.resolve(process.env.DATABASE_PATH ?? path.join(process.cwd(), "data", "db.sqlite"));
 
 function readArg(name) {
   const prefix = `--${name}=`;
